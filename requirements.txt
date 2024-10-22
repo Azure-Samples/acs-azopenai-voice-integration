@@ -1,0 +1,9 @@
+Quart>=0.19.6
+azure-eventgrid==4.11.0
+azure-communication-callautomation==1.1.0
+openai==0.28.1
+azure-search-documents
+spacy
+langchain
+geopy
+langchain_community
