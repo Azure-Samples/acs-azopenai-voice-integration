@@ -4,6 +4,9 @@ azure-communication-callautomation==1.1.0
 openai==0.28.1
 azure-search-documents
 spacy
-langchain
+os
+langchain>=0.3.4,<0.4.0
 geopy
-langchain_community
+langchain-community
+python-dotenv
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.0.0/en_core_web_sm-3.0.0.tar.gz

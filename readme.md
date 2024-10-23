@@ -1,6 +1,57 @@
-|page_type| languages                               |products
-|---|-----------------------------------------|---|
-|sample| <table><tr><td>Python</tr></td></table> |<table><tr><td>azure</td><td>azure-communication-services</td></tr></table>|
+# Recruitment Voice Assistant 
+
+## Features
+- **PSTN Calling**: Users can call a phone number, and the voice assistant will interact with them using speech-to-text and text-to-speech capabilities.
+- **OpenAI GPT-4o Integration**: Generates dynamic recruitment filtering chat for the potential candidate based on job description.
+- **Event-Driven Architecture**: Uses **Azure EventGrid** for event-driven routing of call-related events.
+- **Redis Caching**: Stores precomputed job details, competency questions, and location data to minimize repeated API calls and reduce latency.
+- **Azure Services**: Leverages **Azure Maps**, **Azure Search**, and **Azure Cognitive Services** for grounding the call into relevant job description and in future in the candidate CV. 
+- **Session History**: Session data and call recordings are stored in **Cosmos DB** for long-term storage.
+---
+
+## Architecture Overview
+The following Azure services and technologies are used in this project:
+
+1. **Azure Communication Services (ACS)**: Handles incoming and (to be implemented) outgoing PSTN calls.
+2. **Azure OpenAI GPT-4o**: Generates responses to user inputs using large language models.
+3. **Azure Cognitive Services**: Provides speech-to-text and text-to-speech capabilities for interacting with the caller.
+4. **Azure EventGrid**: Routes call events (CallConnected, RecognizeCompleted, etc.) to the **Quart API**.
+5. **Azure Search**: Queries job details and other information for candidate interaction.
+6. **Azure Maps**: Provides geographic location data for determining candidate proximity to job roles.
+7. **Redis Cache**: Caches job details and other global variables to reduce API calls and improve performance.
+8. **Azure Cosmos DB**: Stores call session data, including recordings and conversation history, for long-term storage.
+---
+
+## Prerequisites 
+- **Azure Communication Services (ACS)** resource for PSTN calling.
+- **Azure Cognitive Services** for speech-to-text and text-to-speech processing.
+- **Azure OpenAI GPT-4** model deployment for generating responses.
+- **Azure Search** for querying job descriptions.
+- **Azure Maps** for geographic information.
+- **Redis** for caching job details and competency questions.
+- **Azure Cosmos DB** for session history and call recordings.
+- **Python 3.8+** installed on your local environment.
+- **Azure Tunnel** for handling ACS callback URLs when testing locally.
+- **Spacy** for entity extraction 
+
+---
+
+## Setup and Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/your-repository-name/voice-assistant
+cd voice-assistant
+```
+
+### 2. Install Python Dependencies
+Create a virtual environment and install the required Python libraries listed in `requirements.txt`.
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
 # Call Automation - Quick Start Sample
 
@@ -13,22 +64,8 @@ This is a sample application demonstrated during Microsoft Build 2023. It highli
 - An Calling-enabled telephone number. [Get a phone number](https://learn.microsoft.com/en-us/azure/communication-services/quickstarts/telephony/get-phone-number?tabs=windows&pivots=platform-azp).
 - Azure Dev Tunnels CLI. For details, see  [Enable dev tunnel](https://docs.tunnels.api.visualstudio.com/cli)
 - Create an Azure Cognitive Services resource. For details, see [Create an Azure Cognitive Services Resource](https://learn.microsoft.com/en-us/azure/cognitive-services/cognitive-services-apis-create-account)
-- An Azure OpenAI Resource and Deployed Model. See [instructions](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/create-resource?pivots=web-portal).
 - Create and host a Azure Dev Tunnel. Instructions [here](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started)
 - [Python](https://www.python.org/downloads/) 3.7 or above.
-
-## Before running the sample for the first time
-
-1. Open an instance of PowerShell, Windows Terminal, Command Prompt or equivalent and navigate to the directory that you would like to clone the sample to.
-2. git clone `https://github.com/Azure-Samples/communication-services-python-quickstarts.git`.
-3. Navigate to `callautomation-openai-sample` folder and open `main.py` file.
-
-### Setup the Python environment
-
-Create and activate python virtual environment and install required packages using following command 
-```
-pip install -r requirements.txt
-```
 
 ### Setup and host your Azure DevTunnel
 
@@ -59,3 +96,8 @@ Open `main.py` file to configure the following settings
 3. Register an EventGrid Webhook for the IncomingCall Event that points to your DevTunnel URI. Instructions [here](https://learn.microsoft.com/en-us/azure/communication-services/concepts/call-automation/incoming-call-notification).
 
 Once that's completed you should have a running application. The best way to test this is to place a call to your ACS phone number and talk to your intelligent agent.
+
+
+
+
+

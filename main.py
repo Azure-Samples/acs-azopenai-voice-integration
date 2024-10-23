@@ -1,5 +1,7 @@
 from pyexpat import model
 import uuid
+import os
+from dotenv import load_dotenv
 from urllib.parse import urlencode, urljoin
 from azure.eventgrid import EventGridEvent, SystemEventNames
 from azure.search.documents import SearchClient
@@ -17,6 +19,8 @@ from azure.communication.callautomation import (
     TextSource
     )
 
+
+
 from azure.communication.callautomation.aio import (
     CallAutomationClient
     )
@@ -27,35 +31,30 @@ from openai.api_resources import (
     ChatCompletion
 )
 
-# Your ACS resource connection string
-ACS_CONNECTION_STRING = "endpoint=https://acs-sthree-v1.unitedstates.communication.azure.com/;accesskey=CcQcuZ5rKnMCAejy1qYv4mBLBKR9mm1CWOJH5CZlaa3d6pBt5cyjJQQJ99AJACULyCpkM33qAAAAAZCSOsL2"
+load_dotenv()
 
-# Cognitive service endpoint
-COGNITIVE_SERVICE_ENDPOINT="https://sthree-multiservice.cognitiveservices.azure.com/"
+openai.api_key = os.getenv("AZURE_OPENAI_SERVICE_KEY")
+openai.api_base = os.getenv("AZURE_OPENAI_SERVICE_ENDPOINT")
+openai.api_type = os.getenv("AZURE_OPENAI_API_TYPE")
+openai.api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+ACS_CONNECTION_STRING = os.getenv("ACS_CONNECTION_STRING")
+COGNITIVE_SERVICE_ENDPOINT = os.getenv("COGNITIVE_SERVICE_ENDPOINT")
+AZURE_OPENAI_SERVICE_KEY = os.getenv("AZURE_OPENAI_SERVICE_KEY")
+AZURE_OPENAI_SERVICE_ENDPOINT = os.getenv("AZURE_OPENAI_SERVICE_ENDPOINT")
+AZURE_OPENAI_DEPLOYMENT_MODEL_NAME=os.getenv("AZURE_OPENAI_DEPLOYMENT_MODEL_NAME")
+AZURE_OPENAI_DEPLOYMENT_MODEL=os.getenv("AZURE_OPENAI_DEPLOYMENT_MODEL")
+AGENT_PHONE_NUMBER  = os.getenv("AGENT_PHONE_NUMBER")
+AZURE_SEARCH_INDEX = os.getenv("AZURE_SEARCH_INDEX")
+SEARCH_KEY = os.getenv("SEARCH_KEY")
+SEARCH_QUERY_KEY = os.getenv("SEARCH_QUERY_KEY")
+AZURE_SEARCH_ENDPOINT = os.getenv("AZURE_SEARCH_ENDPOINT")
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME")
+AZURE_MAPS_KEY = os.getenv("AZURE_MAPS_KEY")
+CALLBACK_URI_HOST = os.getenv("CALLBACK_URI_HOST")
+CALLBACK_EVENTS_URI = os.getenv("CALLBACK_EVENTS_URI")
 
-# Cognitive service endpoint
-AZURE_OPENAI_SERVICE_KEY = "4443459b8bb2468a9d31f963fbff17fe"
-
-# Open AI service endpoint
-AZURE_OPENAI_SERVICE_ENDPOINT="https://ai-aasthamadaanai2659490188550.openai.azure.com/"
-
-# Azure Open AI Deployment Model Name
-AZURE_OPENAI_DEPLOYMENT_MODEL_NAME="gpt-4o-2"
-
-# Azure Open AI Deployment Model
-AZURE_OPENAI_DEPLOYMENT_MODEL="gpt-4o"
-
-# Agent Phone Number
-AGENT_PHONE_NUMBER="+441904545541"
-AZURE_SEARCH_INDEX = "vector-1727694978181"
-SEARCH_KEY = "CzCRuO8Qa5KC2hsHvqVjeUqfEJz2aKKqfHnZ1FA8dzAzSeA8nbmI"
-SEARCH_QUERY_KEY = "12n3xjsQgKOx46I9RuauXD9vtVJfOG2LYGXPITBIQLAzSeDIa4EP" # Your Azure Cognitive query key
-AZURE_SEARCH_ENDPOINT = "https://cs-copilot.search.windows.net"
-AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME = "ada-sthree"  # The name of your deployment for embeddings in Azure OpenAI
-AZURE_MAPS_KEY = "6jQv7YmIcRJTWTIfUtWitXYl9ahuN1aYxANsjRvwcPxQIENgFyCmJQQJ99AFACYeBjFJ0deGAAAgAZMPYjT5"
-# Callback events URI to handle callback events.
-CALLBACK_URI_HOST = "https://g9rn4h94.uks1.devtunnels.ms:8081"
-CALLBACK_EVENTS_URI = "https://g9rn4h94-8081.uks1.devtunnels.ms" + "/api/callbacks"
+print ("callback uri host",CALLBACK_URI_HOST)
+print ("callback events uri",CALLBACK_EVENTS_URI)
 
 credential = AzureKeyCredential(SEARCH_KEY)
 # Initialize Azure Search Client
@@ -74,20 +73,21 @@ TIMEOUT_SILENCE_PROMPT = "I am sorry, I did not hear anything. Please could you 
 GOODBYE_PROMPT = "Thank you for your time. Have a great day. Bye for now!"
 GOODBYE_CONTEXT = "Goodbye"
 MAX_TEXT_LENGTH = 400
-# START_MESSAGE = "Great! Let's get started."
 LOCATION_QUESTION = "Could you please let me know where you’re currently based? "
 THANK_YOU_MESSAGE = "Great! For the next steps, I'll follow up with you via email. Thank you so much for your time today, and I look forward to staying in touch. Have a wonderful day!"
-# JOB_DETAILS = "Its at JP Morgan, London, UK. The role is for a Vice President in AI. You will be collaborating with CDAO on strategic initiatives and leading the development of GenAI applications into production. "
-# USER_INTERESTED = "Does the job role I just mentioned sound interesting to you?"
 JOB_LOCATION = "London"
-# JOB_ROLE = "AI Vice President"
-# COMPETENCY_QUESTIONS = "what is your experience with leading GenAI applications into production?"
 WAITING_MESSAGE = "Please wait while I find the details."
 ESCALATION_MESSAGE = "I'm really sorry, I do not have sufficient information to be able to answer this right now. Let me check with the team and get back to you."
-# # JOB_DETAILS_SHARED = False
-# # CANDIDATE_LOCATION = ""
-# # COMPETENCY_QUESTIONS_ASKED= False
+
+# START_MESSAGE = "Great! Let's get started."
+# JOB_DETAILS = "Its at JP Morgan, London, UK. The role is for a Vice President in AI. You will be collaborating with CDAO on strategic initiatives and leading the development of GenAI applications into production. "
+# USER_INTERESTED = "Does the job role I just mentioned sound interesting to you?"
+# JOB_DETAILS_SHARED = False
+# CANDIDATE_LOCATION = ""
+# COMPETENCY_QUESTIONS_ASKED= False
 # CONSENT_MESSAGE = "Before we proceed, are you okay for me to record this conversation? We will use it to improve our services and will not be shared with any third party."
+# JOB_ROLE = "AI Vice President"
+# COMPETENCY_QUESTIONS = "what is your experience with leading GenAI applications into production?"
 
 cache = {
     "start_message": "Great! Let's get started.",
@@ -104,7 +104,6 @@ cache = {
     "candidate_location": "",
     "competency_questions_asked": False,
     "consent_message": "Before we proceed, are you okay for me to record this conversation? We will use it to improve our services and will not be shared with any third party."
-
 }
 
 system_message = """
@@ -126,6 +125,7 @@ chat_history.add_message({"role": "system", "content": system_message})
 def get_job_details_from_search(str_job_id):
     try:
         search_results = search_client.search(search_text=f"job_id:{str_job_id}", top=1)
+        print(f"Search results: {search_results}")
         if search_results:
             for result in search_results:
                 job_details = result
@@ -153,20 +153,13 @@ call_automation_client = CallAutomationClient.from_connection_string(ACS_CONNECT
 recording_id = None
 recording_chunks_location = []
 max_retry = 2
+is_call_terminated = False
 
-openai.api_key = "4443459b8bb2468a9d31f963fbff17fe"
-openai.api_base = "https://ai-aasthamadaanai2659490188550.openai.azure.com/" # your endpoint should look like the following https://YOUR_RESOURCE_NAME.openai.azure.com/
-openai.api_type = 'azure'
-openai.api_version = "2023-06-01-preview" # this may change in the future
 
 app = Quart(__name__)
 
 async def get_chat_completions_async(user_prompt): 
     print(f"User prompt : {user_prompt}")
-    openai.api_key = "4443459b8bb2468a9d31f963fbff17fe"
-    openai.api_base = "https://ai-aasthamadaanai2659490188550.openai.azure.com/" # your endpoint should look like the following https://YOUR_RESOURCE_NAME.openai.azure.com/
-    openai.api_type = 'azure'
-    openai.api_version = "2023-06-01-preview" # this may change in the future
     messages = chat_history.messages
     messages.append({"role":"user", "content": user_prompt})
     global response_content
@@ -307,7 +300,7 @@ async def handle_callback(contextId):
                             await handle_play(event.data['callConnectionId'], "No problem, I understand. Have a good day!", GOODBYE_CONTEXT)
                             await handle_hangup(event.data['callConnectionId'])
                         else:
-                            await handle_recognize(cache.get[ "consent_message"], caller_id, event.data['callConnectionId'], context="ConsentRequest")
+                            await handle_recognize(cache.get("consent_message"), caller_id, event.data['callConnectionId'], context="ConsentRequest")
 
                     elif event.data['operationContext'] == "ConsentRequest":
                         if "no" in speech_text.lower():
@@ -364,13 +357,17 @@ async def handle_callback(contextId):
                     elif event.data['operationContext'] == "CompetencyResponse":
                         # Acknowledge their experience
                         chat_history.add_message({"role": "user", "content": speech_text})
-                        gpt_follow_up = await get_chat_gpt_response(f"Acknowledge their experience {speech_text}.")
+                        gpt_follow_up = await get_chat_gpt_response(f"Acknowledge candidate experience {speech_text}. Only provide a positive acknowledgment, without any additional questions or prompts.")
                         chat_history.add_message({"role": "assistant", "content": gpt_follow_up})
                         # Change context to "NextSteps" to avoid conflict
-                        await handle_play(event.data['callConnectionId'], gpt_follow_up, context="NextStepsResponse")
-                        # Wait for playback to finish before proceeding
+                        #Play the follow-up acknowledgment message
+                        await handle_play(event.data['callConnectionId'], gpt_follow_up, context="Acknowledgement")
 
-                    elif event.data['operationContext'] == "NextStepsResponse":
+                        # Ask about next steps after acknowledging
+                        next_steps_message = "I actually think you will be a good match for this role. Would it be okay if I forwarded your CV to our client organization?"
+                        await handle_recognize(next_steps_message, caller_id, event.data['callConnectionId'], context="NextStepsRequest")                        # Wait for playback to finish before proceeding
+
+                    elif event.data['operationContext'] == "NextStepsRequest":
                         if any(keyword in speech_text.lower() for keyword in ["yes", "okay", "sure"]):
                             await handle_play(event.data['callConnectionId'], THANK_YOU_MESSAGE, GOODBYE_CONTEXT)
                             await handle_hangup(event.data['callConnectionId'])
@@ -386,32 +383,46 @@ async def handle_callback(contextId):
                 context = event.data['operationContext']
                 if context == "ConsentRequest":
                     # After thanking the candidate, ask for location
-                    await handle_recognize(cache.get['location'], caller_id, event.data['callConnectionId'], context="LocationRequest")
+                    await handle_recognize(cache.get("location"), caller_id, event.data['callConnectionId'], context="LocationRequest")
 
                 elif context == "LocationRequest":
                     # Now play the actual JOB_DETAILS
-                    await handle_play(event.data['callConnectionId'], cache.get["job_details"], context="JobDetails")
+                    await handle_play(event.data['callConnectionId'], cache.get("job_details"), context="JobDetails")
 
                 elif context == "JobDetails":
                     # After JOB_DETAILS is played, proceed to ask if the user is interested
-                    await handle_recognize(cache.get["user interested"], caller_id, event.data['callConnectionId'], context="JobInterest")
+                    await handle_recognize(cache.get("user interested"), caller_id, event.data['callConnectionId'], context="JobInterest")
 
                 elif context == "JobInterest":
                     # After introducing competency questions, ask the question
-                    await handle_recognize(cache.get["competency_questions"], caller_id, event.data['callConnectionId'], context="CompetencyResponse")
+                    await handle_recognize(cache.get("competency_questions"), caller_id, event.data['callConnectionId'], context="CompetencyResponse")
 
                 elif context == "CompetencyResponse":
                     # After acknowledging skills, proceed to next steps
                     await handle_play(event.data['callConnectionId'], "I actually think you could be a very good match for this role. Would it be okay if I forwarded your CV to our client organization?", context="NextStepsResponse")
                     await handle_recognize("Please let me know if that's okay with you.", caller_id, event.data['callConnectionId'], context="NextStepsResponse")
                     
-                
+                elif context == "Acknowledgement":
+                    # After acknowledging skills, proceed to ask about the next steps
+                    next_steps_message = "I actually think you could be a very good match for this role. Would it be okay if I forwarded your CV to our client organization?"
+                    await handle_recognize(next_steps_message, caller_id, event.data['callConnectionId'], context="NextStepsRequest")
                 # elif context == "NextSteps":
                 #     # After acknowledging skills, proceed to next steps
                 #     await handle_play(event.data['callConnectionId'], "I actually think you could be a very good match for this role. Would it be okay if I forwarded your CV to our client organization?", context="NextStepsResponse")
                 #     await handle_recognize("Please let me know if that's okay with you.", caller_id, event.data['callConnectionId'], context="NextStepsResponse")
 
+                elif context == "NextStepsResponse":
+                    if "yes" in speech_text.lower() or "okay" in speech_text.lower() or "sure" in speech_text.lower():
+                        await handle_play(event.data['callConnectionId'], THANK_YOU_MESSAGE, GOODBYE_CONTEXT)
+                    else:
+                        await handle_play(event.data['callConnectionId'], "No problem, thank you for your time. Have a great day!", GOODBYE_CONTEXT)
 
+                elif context == "GOODBYE_CONTEXT":
+                    if not is_call_terminated:
+                    # After playing goodbye message, hang up the call
+                        await handle_hangup(event.data['callConnectionId'])
+                        is_call_terminated = True
+                    
             elif event.type == "Microsoft.Communication.RecognizeFailed":
                 resultInformation = event.data['resultInformation']
                 reasonCode = resultInformation['subCode']
@@ -433,102 +444,6 @@ async def handle_callback(contextId):
         app.logger.info("Error in event handling: %s", ex)
 
         
-# async def handle_callback(contextId):
-#     try:
-#         global caller_id
-#         app.logger.info("Request Json: %s", await request.json)
-#         for event_dict in await request.json:
-#             event = CloudEvent.from_dict(event_dict)
-#             app.logger.info("%s event received for call connection id: %s", event.type, event.data['callConnectionId'])
-#             caller_id = request.args.get("callerId").strip()
-#             if "+" not in caller_id:
-#                 caller_id = "+".strip() + caller_id.strip()
-
-#             app.logger.info("call connected : data=%s", event.data)
-
-#             # Check event type and handle accordingly
-#             if event.type == "Microsoft.Communication.CallConnected":
-#                 await handle_recognize(HELLO_PROMPT, caller_id, event.data['callConnectionId'], context="InitialGreeting")
-
-#             elif event.type == "Microsoft.Communication.RecognizeCompleted":
-#                 if event.data['recognitionType'] == "speech":
-#                     speech_text = event.data['speechResult']['speech']
-#                     app.logger.info("Recognition completed, speech_text =%s", speech_text)
-#                     chat_history.add_message({"role": "user", "content": speech_text})
-
-#                     # Handle conversation flow based on candidate's response
-#                     if event.data['operationContext'] == "InitialGreeting":
-#                         if any(keyword in speech_text.lower() for keyword in ["no", "not interested", "busy"]):
-#                             await handle_play(event.data['callConnectionId'], "No problem, I understand. Have a good day!", GOODBYE_CONTEXT)
-#                         else:
-#                             await handle_recognize(CONSENT_MESSAGE, caller_id, event.data['callConnectionId'], context="ConsentRequest")
-
-#                     elif event.data['operationContext'] == "ConsentRequest":
-#                         if "no" in speech_text.lower():
-#                             decline_message = await get_chat_gpt_response("Candidate does not consent to recording. Generate a response to politely end the call.")
-#                             await handle_play(event.data['callConnectionId'], decline_message, GOODBYE_CONTEXT)
-#                         else:
-#                             start_message = await get_chat_gpt_response("Generate a warm response to thank the candidate for consenting and start the conversation.")
-#                             await handle_play(event.data['callConnectionId'], start_message, context="LocationRequest")
-#                             await handle_recognize(LOCATION_QUESTION, caller_id, event.data['callConnectionId'], context="LocationRequest")
-
-#                     elif event.data['operationContext'] == "LocationRequest":
-#                         chat_history.add_message({"role": "user", "content": speech_text})
-#                         # Handle location response
-#                         location = extract_location(speech_text)
-#                         candidate_coords = get_coordinates(location)
-#                         job_coords = get_coordinates(JOB_LOCATION)
-#                         distance = geodesic(candidate_coords, job_coords).kilometers
-
-#                         if distance <= 50:
-#                             await handle_play(event.data['callConnectionId'], f"The job is located in London so it might actually work out nicely for you! Let me share some details.", context="JobDetails")
-#                         else:
-#                             await handle_play(event.data['callConnectionId'], "The job is located in London. Are you open to commuting if travel expenses are reimbursed?", context="CommuteQuestion")
-
-#                     elif event.data['operationContext'] == "CommuteQuestion":
-#                         if any(keyword in speech_text.lower() for keyword in ["yes", "okay", "fine"]):
-#                             app.logger.info("User is open to commuting")
-#                             await handle_play(event.data['callConnectionId'], "Great! Let me share some details about the job.", context="JobDetails")
-#                             await handle_recognize(JOB_DETAILS, caller_id, event.data['callConnectionId'], context="JobDetails")
-#                         else:
-#                             await handle_play(event.data['callConnectionId'], "No problem, thank you for your time. Have a good rest of the day!", GOODBYE_CONTEXT)
-
-#                     elif event.data['operationContext'] == "JobDetails":
-#                         await handle_play(event.data['callConnectionId'], JOB_DETAILS, context="JobInterest")
-#                         await handle_recognize(JOB_DETAILS, caller_id, event.data['callConnectionId'], context="JobInterest")
-
-#                     elif event.data['operationContext'] == "JobInterest":
-#                         if any(keyword in speech_text.lower() for keyword in ["no", "not interested"]):
-#                             await handle_play(event.data['callConnectionId'], "No problem, thank you for your time. Have a good rest of the day!", GOODBYE_CONTEXT)
-#                         else:
-#                             await handle_play(event.data['callConnectionId'], "Thank you so much for your interest! I'd like to ask you a few questions about your experience and skills to understand how well they align with this opportunity.", context="CompetencyQuestions")
-#                             await handle_recognize(COMPETENCY_QUESTIONS, caller_id, event.data['callConnectionId'], context="CompetencyResponse")
-
-#                     elif event.data['operationContext'] == "CompetencyResponse":
-#                         chat_history.add_message({"role": "user", "content": speech_text})
-#                         gpt_follow_up = await get_chat_gpt_response(f"Acknowledge their experience {speech_text} is relevant to the {JOB_ROLE}.")
-#                         chat_history.add_message({"role": "assistant", "content": gpt_follow_up})
-#                         await handle_play(event.data['callConnectionId'], gpt_follow_up, context="FollowUp")
-#                         await handle_play(event.data['callConnectionId'], THANK_YOU_MESSAGE, GOODBYE_CONTEXT)
-
-#             elif event.type == "Microsoft.Communication.RecognizeFailed":
-#                 resultInformation = event.data['resultInformation']
-#                 reasonCode = resultInformation['subCode']
-#                 context = event.data['operationContext']
-#                 global max_retry
-#                 if reasonCode == 8510 and 0 < max_retry:
-#                     await handle_recognize(TIMEOUT_SILENCE_PROMPT, caller_id, event.data['callConnectionId'])
-#                     max_retry -= 1
-#                 else:
-#                     await handle_play(event.data['callConnectionId'], GOODBYE_PROMPT, GOODBYE_CONTEXT)
-
-#             elif event.type == "Microsoft.Communication.PlayCompleted":
-#                 context = event.data['operationContext']
-
-#         return Response(status=200)
-#     except Exception as ex:
-#         app.logger.info("error in event handling: %s", ex)
-
 @app.route("/")
 def hello():
     return "Hello ACS CallAutomation!..test"
