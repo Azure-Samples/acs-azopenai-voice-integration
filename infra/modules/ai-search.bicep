@@ -1,10 +1,10 @@
-param location string = resourceGroup().location
+param location string = 'northeurope'
 
-param kvName string
+//param kvName string
 
 param envName string = 'dev'
 
-param aiSeachName string = 'ai-search-${uniqueString(resourceGroup().id)}-${envName}}'
+param aiSeachName string = 'ai-search-${uniqueString(resourceGroup().id)}-${envName}'
 
 @allowed([
   'free'
@@ -14,9 +14,9 @@ param aiSeachName string = 'ai-search-${uniqueString(resourceGroup().id)}-${envN
 @description('Configuration for semantic search, dependent on region and SKU')
 param semanticSearchConfig string = 'free'
 
-resource kv 'Microsoft.KeyVault/vaults@2024-04-01-preview' existing ={
-  name: kvName
-}
+//resource kv 'Microsoft.KeyVault/vaults@2024-04-01-preview' existing ={
+//  name: kvName
+//}
 
 module searchService 'br/public:avm/res/search/search-service:0.7.0' = {
   name: 'searchServiceDeployment'
@@ -32,6 +32,7 @@ module searchService 'br/public:avm/res/search/search-service:0.7.0' = {
     disableLocalAuth: false
     location: location
     semanticSearch: semanticSearchConfig
+    publicNetworkAccess: 'Enabled'
  //   secretsExportConfiguration: {
  //     keyVaultResourceId: kv.id
  //     primaryAdminKeyName: 'Primary-Admin-Key'
