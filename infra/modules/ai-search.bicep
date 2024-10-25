@@ -32,10 +32,10 @@ module searchService 'br/public:avm/res/search/search-service:0.7.0' = {
     disableLocalAuth: false
     location: location
     semanticSearch: semanticSearchConfig
-//    secretsExportConfiguration: {
-//      keyVaultResourceId: kv.id
-//      primaryAdminKeyName: 'Primary-Admin-Key'
-//      secondaryAdminKeyName: 'Secondary-Admin-Key'
-//    }
+ //   secretsExportConfiguration: {
+ //     keyVaultResourceId: kv.id
+ //     primaryAdminKeyName: 'Primary-Admin-Key'
+ //     secondaryAdminKeyName: 'Secondary-Admin-Key'
+ //   }
   }
 }
