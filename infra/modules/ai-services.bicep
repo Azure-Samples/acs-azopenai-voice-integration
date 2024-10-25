@@ -5,5 +5,6 @@ module aiServAccModule 'br/public:avm/res/cognitive-services/account:0.8.0' = {
   params: {
     kind: 'SpeechServices'
     name: aiServAccName
+    disableLocalAuth: false
   }
 }
