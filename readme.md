@@ -77,6 +77,25 @@ devtunnel port create -p 8080
 devtunnel host
 ```
 
+### Deploy and set up the infrastructure
+
+> **Disclaimer:** The infrastructure and code provided is **not production-ready** and isn't fully dynamic. If having dynamic IaC is relevant for you, please review the templates and add modifications as needed. Additionally, some steps are left to be done manual due to the potential conflicts with Azure Policies implemented in your targeted tenant/subscription.
+
+Deploy the bicep template by navigating to the `infra` folder and running:
+```azcli
+az deployment group create --resource-group rg-sthree-poc-sandbox --template-file main.bicep
+```
+Optionally, add the flag `--mode Complete` to avoid inconsistences when carrying out redeployments
+
+Once deployed, proceed manually with the following:
+1. Navigate into the Event Grid System Topic created and add a subscription pointing to the Dev Tunnel url that was generated on the step above.
+2. Generate an index on Azure AI Search to have a vectorized data for the RAG feature of the model. Feel free to do it via the GUI or code, as preferred.
+3. Navigate into Az Communications Service (ACS) and [acquire a phone number by purchasing it on the portal or via code](https://learn.microsoft.com/en-us/azure/communication-services/quickstarts/telephony/get-phone-number?tabs=windows&pivots=platform-azp)
+4. Create a service principal for ACS within Azure App Registrations for permissions and access.
+5. Extract the necessary environment variables to run the app and add them onto the `.env` file.
+
+
+
 ### Configuring application
 
 Open `main.py` file to configure the following settings

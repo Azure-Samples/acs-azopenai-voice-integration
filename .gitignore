@@ -1,0 +1,2 @@
+# avoid accidentally committing your local secrets
+*.env
