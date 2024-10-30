@@ -4,7 +4,6 @@ azure-communication-callautomation==1.1.0
 openai==0.28.1
 azure-search-documents
 spacy
-os
 langchain>=0.3.4,<0.4.0
 geopy
 langchain-community
