@@ -1,7 +1,7 @@
 // main.bicep
- 
+
 targetScope = 'resourceGroup'
- 
+
 // Parameters
 param location string = resourceGroup().location
 param envName string = 'dev'
@@ -13,7 +13,7 @@ param aiLocation string = 'swedencentral'
 @description('AOAI gpt 4o deployment config')
 param aoaiGptDeployment object = {
   name: 'gpt-4o'
-  model:{
+  model: {
     format: 'OpenAI'
     name: 'gpt-4o'
     version: '2024-08-06'
@@ -38,18 +38,12 @@ param aoaiEmbeddingsDeployment object = {
   }
 }
 
-
 var aiServDeployments = [
   aoaiGptDeployment
   aoaiEmbeddingsDeployment
   //speechAiDeployment
 ]
 
-
-
-
-
- 
 // Modules
 module aoai 'modules/aoai.bicep' = {
   name: 'deployAoai'
@@ -63,22 +57,22 @@ module aoai 'modules/aoai.bicep' = {
 module aiSpeech 'modules/ai-services.bicep' = {
   name: 'deploySpeechService'
 }
- 
+
 module maps 'modules/maps.bicep' = {
   name: 'deployMaps'
   params: {
-    location: 'northeurope'  // maps has limited locations so defaulting to northeurope
+    location: 'northeurope' // maps has limited locations so defaulting to northeurope
     envName: envName
   }
 }
- 
+
 module acs 'modules/acs.bicep' = {
   name: 'deployAcs'
-  params:{
+  params: {
     envName: envName
   }
 }
- 
+
 module aiSearch 'modules/ai-search.bicep' = {
   name: 'deployAiSearch'
   params: {
@@ -88,15 +82,17 @@ module aiSearch 'modules/ai-search.bicep' = {
 }
 
 module eg 'modules/event-grid.bicep' = {
-  name:'deployEventGrid'
-  params:{
+  name: 'deployEventGrid'
+  params: {
     acsName: acsName
     envName: envName
-
   }
+  dependsOn: [
+    acs
+  ]
 }
 
-module redis 'modules/redis.bicep' ={
+module redis 'modules/redis.bicep' = {
   name: 'redisDeployment'
   params: {
     envName: envName
