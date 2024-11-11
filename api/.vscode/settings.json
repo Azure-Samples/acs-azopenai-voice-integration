@@ -1,4 +1,0 @@
-{
-    "appService.defaultWebAppToDeploy": "/subscriptions/7febc3da-6cf5-4dd8-9de8-893009904239/resourceGroups/tf-ai-aivoice-dev-accelerator-rg/providers/Microsoft.Web/sites/app-api-tf-ai-aivoice-dev-api",
-    "appService.deploySubpath": "."
-}
