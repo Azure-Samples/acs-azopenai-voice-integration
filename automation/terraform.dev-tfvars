@@ -1,0 +1,4 @@
+# Variables
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+github_owner = "GITHUB_OWNER"
+github_token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"

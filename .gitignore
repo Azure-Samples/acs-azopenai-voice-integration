@@ -1,3 +1,5 @@
 # avoid accidentally committing your local secrets
 *.env
-venv
+venv/
+venv2/
+automation/.terraform/
