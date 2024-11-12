@@ -54,42 +54,13 @@ JOB_LOCATION = "London"
 WAITING_MESSAGE = "Please wait while I find the details."
 ESCALATION_MESSAGE = "I'm really sorry, I do not have sufficient information to be able to answer this right now. Let me check with the team and get back to you."
 
-#--------------------------------------------
-ANSWER_PROMPT_SYSTEM_TEMPLATE = """ 
-    You are an assistant designed to answer the customer query and analyze the sentiment score from the customer tone. 
-    You also need to determine the intent of the customer query and classify it into categories such as sales, marketing, shopping, etc.
-    Use a scale of 1-10 (10 being highest) to rate the sentiment score. 
-    Use the below format, replacing the text in brackets with the result. Do not include the brackets in the output: 
-    Content:[Answer the customer query briefly and clearly in two lines and ask if there is anything else you can help with] 
-    Score:[Sentiment score of the customer tone] 
-    Intent:[Determine the intent of the customer query] 
-    Category:[Classify the intent into one of the categories]
-    """
-
-CONNECT_AGENT_PROMPT = "I'm sorry, I was not able to assist you with your request. Let me transfer you to an agent who can help you further. Please hold the line, and I willl connect you shortly."
-CALLTRANSFER_FAILURE_PROMPT = "It looks like I can not connect you to an agent right now, but we will get the next available agent to call you back as soon as possible."
-AGENT_PHONE_NUMBER_EMPTY_PROMPT = "I am sorry, we are currently experiencing high call volumes and all of our agents are currently busy. Our next available agent will call you back as soon as possible."
-END_CALL_PHRASE_TO_CONNECT_AGENT = (
-    "Sure, please stay on the line. I am going to transfer you to an agent."
-)
-
-TRANSFER_FAILED_CONTEXT = "TransferFailed"
-CONNECT_AGENT_CONTEXT = "ConnectAgent"
-
-#--------------------------------------------
-
 HELLO_PROMPT = "Hello, I am Emily V6 one of the voice assistants at SThree. We have a job role that matches your skillset. Do you have a few minutes to discuss it?"
 TIMEOUT_SILENCE_PROMPT = (
     "I am sorry, I did not hear anything. Please could you confirm you are there"
 )
 GOODBYE_PROMPT = "Thank you for your time. Have a great day. Bye for now!"
 GOODBYE_CONTEXT = "Goodbye"
-MAX_TEXT_LENGTH = 400
-LOCATION_QUESTION = "Could you please let me know where you’re currently based? "
-THANK_YOU_MESSAGE = "Great! For the next steps, I'll follow up with you via email. Thank you so much for your time today, and I look forward to staying in touch. Have a wonderful day!"
-WAITING_MESSAGE = "Please wait while I find the details."
-ESCALATION_MESSAGE = "I'm really sorry, I do not have sufficient information to be able to answer this right now. Let me check with the team and get back to you."
-
+#--------------------------------------------
 
 
 CHAT_RESPONSE_EXTRACT_PATTERN = (
@@ -104,12 +75,6 @@ recording_id = None
 recording_chunks_location = []
 max_retry = 2
 is_call_terminated = False
-
-import openai
-# openai.api_key = AZURE_OPENAI_SERVICE_KEY
-# openai.api_base = AZURE_OPENAI_SERVICE_ENDPOINT  # your endpoint should look like the following https://YOUR_RESOURCE_NAME.openai.azure.com/
-# openai.api_type = "azure"
-# openai.api_version = "2024-08-06"  # this may change in the future
 
 app = Quart(__name__)
 
@@ -131,7 +96,7 @@ cache = {
     "consent_message": "Before we proceed, are you okay for me to record this conversation? We will use it to improve our services and will not be shared with any third party.",
 }
 
-system_message = """
+SYSTEM_MESSAGE = """
 ## CONTEXT ## 
 You are Emily, one of the new voice Assistants at SThree. You are helping a job seeker with a job role that matches her skillset. You will ask her some questions and share some details about the role. You will also answer her questions and share some information. Always wait for the job seeker's response before proceeding to the next part of the conversation.
 ## CONVERSATION FLOW ## 
@@ -149,7 +114,7 @@ job_coords = [1.3456, 1.435535]
 
 # Initialize LangChain Chat Message History
 chat_history = ChatMessageHistory()
-chat_history.add_message({"role": "system", "content": system_message})
+chat_history.add_message({"role": "system", "content": SYSTEM_MESSAGE})
 
 
 client = AsyncAzureOpenAI(
@@ -184,24 +149,7 @@ async def get_chat_completions_async(system_prompt: str, user_prompt: str) -> st
         return ""
 
 async def get_chat_gpt_response(speech_input):
-    return await get_chat_completions_async(ANSWER_PROMPT_SYSTEM_TEMPLATE, speech_input)
-
-
-# async def handle_recognize(replyText, callerId, call_connection_id, context=""):
-#     play_source = TextSource(text=replyText, voice_name="en-US-AvaMultilingualNeural")
-#     connection_client = call_automation_client.get_call_connection(call_connection_id)
-#     try:
-#         recognize_result = await connection_client.start_recognizing_media(
-#             input_type=RecognizeInputType.SPEECH,
-#             target_participant=PhoneNumberIdentifier(callerId),
-#             end_silence_timeout=.5,
-#             play_prompt=play_source,
-#             operation_context=context,
-#         )
-#         print(f"handle_recognize : data={recognize_result}")
-#     except Exception as ex:
-#         print(f"Error in recognize: {ex}")
-
+    return await get_chat_completions_async(SYSTEM_MESSAGE, speech_input)
 
 
 async def handle_play(call_connection_id: str, text_to_play: str, context: str) -> None:
@@ -220,7 +168,7 @@ async def handle_play(call_connection_id: str, text_to_play: str, context: str) 
         # Create play source
         play_source = TextSource(
             text=text_to_play,
-            voice_name="en-US-JennyNeural"
+            voice_name="en-US-AvaMultilingualNeural"
         )
         
         # Get connection and play
@@ -242,7 +190,7 @@ async def handle_play(call_connection_id: str, text_to_play: str, context: str) 
                 # Try fallback voice
                 alternate_source = TextSource(
                     text=text_to_play,
-                    voice_name="en-US-SaraNeural"
+                    voice_name="en-US-AvaMultilingualNeural"
                 )
                 await connection.play_media_to_all(
                     alternate_source,
@@ -271,7 +219,7 @@ async def handle_recognize(
             
         play_source = TextSource(
             text=reply_text,
-            voice_name="en-US-JennyNeural"
+            voice_name="en-US-AvaMultilingualNeural"
         )
         
         connection_client = call_automation_client.get_call_connection(call_connection_id)
@@ -299,7 +247,7 @@ async def handle_recognize(
                 # Try fallback voice
                 alternate_source = TextSource(
                     text=reply_text,
-                    voice_name="en-US-SaraNeural"
+                    voice_name="en-US-AvaMultilingualNeural"
                 )
                 result = await connection_client.start_recognizing_media(
                     input_type=RecognizeInputType.SPEECH,
@@ -314,49 +262,12 @@ async def handle_recognize(
                 return None
         
         return None
-
-# async def handle_play(call_connection_id, text_to_play, context):
-#     if len(text_to_play) > MAX_TEXT_LENGTH:
-#         text_to_play = text_to_play[:MAX_TEXT_LENGTH]    
-#     play_source = TextSource(text=text_to_play, voice_name="en-US-AvaMultilingualNeuralhandle_recognize")
-#     await call_automation_client.get_call_connection(
-#         call_connection_id
-#     ).play_media_to_all(play_source, operation_context=context)
-                       
+             
 
 async def handle_hangup(call_connection_id):
     await call_automation_client.get_call_connection(call_connection_id).hang_up(
         is_for_everyone=True
     )
-
-
-async def detect_escalate_to_agent_intent(speech_text, logger):
-    return await has_intent_async(
-        user_query=speech_text, intent_description="talk to agent", logger=logger
-    )
-
-
-async def has_intent_async(user_query, intent_description, logger):
-    is_match = False
-    system_prompt = "You are a helpful assistant"
-    combined_prompt = (
-        f"In 1 word: does {user_query} have a similar meaning as {intent_description}?"
-    )
-    # combined_prompt = base_user_prompt.format(user_query, intent_description)
-    response = await get_chat_completions_async(system_prompt, combined_prompt)
-    if "yes" in response.lower():
-        is_match = True
-    logger.info(
-        f"OpenAI results: is_match={is_match}, customer_query='{user_query}', intent_description='{intent_description}'"
-    )
-    return is_match
-
-
-def get_sentiment_score(sentiment_score):
-    pattern = r"(\d)+"
-    regex = re.compile(pattern)
-    match = regex.search(sentiment_score)
-    return int(match.group()) if match else -1
 
 
 async def answer_call_async(incoming_call_context, callback_url):
