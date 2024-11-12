@@ -110,7 +110,33 @@ If the user says yes: proceed by sharing a summary of the job role and ask the c
 - For any questions you do not have an answer for, let the candidate know that you will come back to them and check with the hiring manager. 
 - When using the content or reading the content from the job description, do not read out the markdowns or special characters. Read it out as a human would do.
 """
-job_coords = [1.3456, 1.435535]
+
+
+def clean_response(response):
+    response = re.sub(r'\[.*?\]\(.*?\)', '', response)
+    response = re.sub(r'\[.*?\]', '', response)
+    response = re.sub(r'[^a-zA-Z0-9\s\.\,\?\!]', '', response)
+    response = re.sub(r'\s+', ' ', response).strip()
+    return response
+
+def extract_location(user_response):
+    doc = nlp(user_response)
+    for ent in doc.ents:
+        if ent.label_ == "GPE":
+            return ent.text
+    return None
+
+
+def get_coordinates(location_name):
+    url = f"https://atlas.microsoft.com/search/address/json?api-version=1.0&query={location_name}&subscription-key={AZURE_MAPS_KEY}"
+    response = requests.get(url)
+    data = response.json()
+    if data['results']:
+        coordinates = data['results'][0]['position']
+        return [coordinates['lat'], coordinates['lon']]
+    return None
+
+job_coords = get_coordinates(cache["job_location"])
 
 # Initialize LangChain Chat Message History
 chat_history = ChatMessageHistory()
