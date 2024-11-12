@@ -54,7 +54,7 @@ JOB_LOCATION = "London"
 WAITING_MESSAGE = "Please wait while I find the details."
 ESCALATION_MESSAGE = "I'm really sorry, I do not have sufficient information to be able to answer this right now. Let me check with the team and get back to you."
 
-HELLO_PROMPT = "Hello, I am Emily V6 one of the voice assistants at SThree. We have a job role that matches your skillset. Do you have a few minutes to discuss it?"
+HELLO_PROMPT = "Hello, I am Emily V7 one of the voice assistants at SThree. We have a job role that matches your skillset. Do you have a few minutes to discuss it?"
 TIMEOUT_SILENCE_PROMPT = (
     "I am sorry, I did not hear anything. Please could you confirm you are there"
 )
@@ -119,24 +119,24 @@ def clean_response(response):
     response = re.sub(r'\s+', ' ', response).strip()
     return response
 
-def extract_location(user_response):
-    doc = nlp(user_response)
-    for ent in doc.ents:
-        if ent.label_ == "GPE":
-            return ent.text
-    return None
+# def extract_location(user_response):
+#     doc = nlp(user_response)
+#     for ent in doc.ents:
+#         if ent.label_ == "GPE":
+#             return ent.text
+#     return None
 
 
-def get_coordinates(location_name):
-    url = f"https://atlas.microsoft.com/search/address/json?api-version=1.0&query={location_name}&subscription-key={AZURE_MAPS_KEY}"
-    response = requests.get(url)
-    data = response.json()
-    if data['results']:
-        coordinates = data['results'][0]['position']
-        return [coordinates['lat'], coordinates['lon']]
-    return None
+# def get_coordinates(location_name):
+#     url = f"https://atlas.microsoft.com/search/address/json?api-version=1.0&query={location_name}&subscription-key={AZURE_MAPS_KEY}"
+#     response = requests.get(url)
+#     data = response.json()
+#     if data['results']:
+#         coordinates = data['results'][0]['position']
+#         return [coordinates['lat'], coordinates['lon']]
+#     return None
 
-job_coords = get_coordinates(cache["job_location"])
+job_coords = [1.3456,1.1355] #get_coordinates(cache["job_location"])
 
 # Initialize LangChain Chat Message History
 chat_history = ChatMessageHistory()
@@ -662,7 +662,7 @@ async def handle_callback(contextId):
 
 @app.route("/")
 def hello():
-    return "Hello ACS S3!..test"
+    return "Hello ACS S7!..test"
 
 
 if __name__ == "__main__":
