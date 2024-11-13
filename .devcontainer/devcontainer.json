@@ -6,8 +6,7 @@
  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bullseye",
  "features": {
   "ghcr.io/devcontainers/features/azure-cli:1": {},
-  "ghcr.io/rchaganti/vsc-devcontainer-features/azurebicep:1": {},
-  "ghcr.io/davzucky/devcontainers-features-wolfi/bash:1": {}
+  "ghcr.io/rchaganti/vsc-devcontainer-features/azurebicep:1": {}
  },
  "customizations": {
   "vscode": {
@@ -30,7 +29,8 @@
  // "forwardPorts": [],
 
  // Use 'postCreateCommand' to run commands after the container is created.
- "postCreateCommand": "pip3 install -r requirements.txt"
+ // install the devtunnel cli
+ "postCreateCommand": "curl -sL https://aka.ms/DevTunnelCliInstall | bash"
 
  // Configure tool-specific properties.
  // "customizations": {},
