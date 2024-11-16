@@ -6,3 +6,69 @@
 2024-11-16 16:46:01,442 - src.core.app - INFO - Application initialized successfully V0.15
 2024-11-16 17:38:47,375 - src.core.app - INFO - Application initialized successfully V0.15
 2024-11-16 17:39:05,117 - src.core.app - INFO - async def hello
+2024-11-16 21:11:53,652 - src.core.app - INFO - Application initialized successfully V0.15
+2024-11-16 21:16:31,044 - src.core.app - INFO - incoming_call_handler
+2024-11-16 21:16:31,046 - src.core.app - INFO - Received incoming call request: {"data": {"validationCode": "123456"}, "id": "test-id", "eventTime": "2024-11-16T20:00:00Z", "metadataVersion": "1", "eventType": "Microsoft.EventGrid.SubscriptionValidationEvent", "dataVersion": "1.0"}
+2024-11-16 21:16:31,047 - src.core.app - ERROR - Error in incoming call handler: (", AttributeError: 'str' object has no attribute 'get'", 'Unable to deserialize to object: type', AttributeError("'str' object has no attribute 'get'"))
+Traceback (most recent call last):
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\venv3\lib\site-packages\azure\eventgrid\_legacy\_generated\_serialization.py", line 1485, in _deserialize
+    found_value = key_extractor(attr, attr_desc, data)
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\venv3\lib\site-packages\azure\eventgrid\_legacy\_generated\_serialization.py", line 1286, in attribute_key_case_insensitive_extractor
+    return data.get(found_key)
+AttributeError: 'str' object has no attribute 'get'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\api\src\core\app.py", line 79, in incoming_call_handler
+    event = EventGridEvent.from_dict(event_dict)
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\venv3\lib\site-packages\azure\eventgrid\_legacy\_generated\_serialization.py", line 462, in from_dict
+    return deserializer(cls.__name__, data, content_type=content_type)
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\venv3\lib\site-packages\azure\eventgrid\_legacy\_generated\_serialization.py", line 1430, in __call__
+    return self._deserialize(target_obj, data)
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\venv3\lib\site-packages\azure\eventgrid\_legacy\_generated\_serialization.py", line 1500, in _deserialize
+    raise_with_traceback(DeserializationError, msg, err)
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\venv3\lib\site-packages\azure\core\exceptions.py", line 100, in raise_with_traceback
+    raise error.with_traceback(exc_traceback)
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\venv3\lib\site-packages\azure\eventgrid\_legacy\_generated\_serialization.py", line 1485, in _deserialize
+    found_value = key_extractor(attr, attr_desc, data)
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\venv3\lib\site-packages\azure\eventgrid\_legacy\_generated\_serialization.py", line 1286, in attribute_key_case_insensitive_extractor
+    return data.get(found_key)
+azure.core.exceptions.DeserializationError: (", AttributeError: 'str' object has no attribute 'get'", 'Unable to deserialize to object: type', AttributeError("'str' object has no attribute 'get'"))
+2024-11-16 21:21:27,785 - src.core.app - INFO - Application initialized successfully V0.15
+2024-11-16 21:21:36,656 - src.core.app - INFO - incoming_call_handler
+2024-11-16 21:21:36,657 - src.core.app - INFO - Received incoming call request: {"data": {"validationCode": "123456"}, "id": "test-id", "eventTime": "2024-11-16T20:00:00Z", "metadataVersion": "1", "eventType": "Microsoft.EventGrid.SubscriptionValidationEvent", "dataVersion": "1.0"}
+2024-11-16 21:21:36,658 - src.core.app - ERROR - Error in incoming call handler: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\api\src\core\app.py", line 81, in incoming_call_handler
+    event_dict = json.loads(event_dict)
+  File "C:\Users\mousmahmoud\.pyenv\pyenv-win\versions\3.10.11\lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "C:\Users\mousmahmoud\.pyenv\pyenv-win\versions\3.10.11\lib\json\decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "C:\Users\mousmahmoud\.pyenv\pyenv-win\versions\3.10.11\lib\json\decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+2024-11-16 21:31:05,859 - src.core.app - INFO - Application initialized successfully V0.15
+2024-11-16 21:32:24,396 - src.core.app - INFO - incoming_call_handler
+2024-11-16 21:32:24,396 - src.core.app - INFO - Received incoming call request: {"data": {"validationCode": "123456"}, "id": "test-id", "eventTime": "2024-11-16T20:00:00Z", "metadataVersion": "1", "eventType": "Microsoft.EventGrid.SubscriptionValidationEvent", "dataVersion": "1.0"}
+2024-11-16 21:32:24,412 - src.core.app - INFO - Converting event_dict to dict: data
+2024-11-16 21:32:24,412 - src.core.app - ERROR - Error in incoming call handler: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "C:\Users\mousmahmoud\IdeaProjects\MSFT\ACSOpenAIVoice\api\src\core\app.py", line 82, in incoming_call_handler
+    event_dict = json.loads(event_dict)
+  File "C:\Users\mousmahmoud\.pyenv\pyenv-win\versions\3.10.11\lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "C:\Users\mousmahmoud\.pyenv\pyenv-win\versions\3.10.11\lib\json\decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "C:\Users\mousmahmoud\.pyenv\pyenv-win\versions\3.10.11\lib\json\decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+2024-11-16 21:34:02,930 - src.core.app - INFO - Application initialized successfully V0.15
+2024-11-16 21:34:15,082 - src.core.app - INFO - incoming_call_handler
+2024-11-16 21:34:15,082 - src.core.app - INFO - Received incoming call request: {"data": {"validationCode": "123456"}, "id": "test-id", "eventTime": "2024-11-16T20:00:00Z", "metadataVersion": "1", "eventType": "Microsoft.EventGrid.SubscriptionValidationEvent", "dataVersion": "1.0"}
+2024-11-16 21:34:15,082 - src.core.app - INFO - Processing event: {"data": {"validationCode": "123456"}, "id": "test-id", "eventTime": "2024-11-16T20:00:00Z", "metadataVersion": "1", "eventType": "Microsoft.EventGrid.SubscriptionValidationEvent", "dataVersion": "1.0"}
+2024-11-16 21:34:15,097 - src.core.app - INFO - Parsed event: {'additional_properties': {}, 'id': 'test-id', 'topic': None, 'subject': None, 'data': {'validationCode': '123456'}, 'event_type': 'Microsoft.EventGrid.SubscriptionValidationEvent', 'event_time': datetime.datetime(2024, 11, 16, 20, 0, tzinfo=<isodate.tzinfo.Utc object at 0x0000027EF77B6470>), 'metadata_version': '1', 'data_version': '1.0'}
+2024-11-16 21:34:15,097 - src.core.app - INFO - Handling validation event
+2024-11-16 21:34:15,108 - src.core.app - INFO - Validation code: 123456
+2024-11-16 21:34:40,202 - src.core.app - INFO - Application initialized successfully V0.15

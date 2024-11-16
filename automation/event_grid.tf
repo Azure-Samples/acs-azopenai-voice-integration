@@ -15,4 +15,12 @@ resource "azurerm_eventgrid_system_topic_event_subscription" "webapp_event_subsc
   webhook_endpoint {
     url = "https://${local.name_prefix}-api.azurewebsites.net/api/incomingCall"
   }
+  included_event_types = [
+    "Microsoft.Communication.IncomingCall"
+  ]
+  retry_policy {
+    max_delivery_attempts = 5
+    event_time_to_live    = 1440
+  }
+
 }

@@ -16,31 +16,30 @@ from src.core.event_handlers import EventHandlers
 
 from src.utils.logger import setup_logger
 
+
 class CallAutomationApp:
     """Main application class"""
+
     def __init__(self):
         self.app = Quart(__name__)
         self.config = Config()
         self.logger = setup_logger(__name__)
-        
+
         # Initialize services
         self.cache_service = CacheService()
         self.call_automation_client = CallAutomationClient.from_connection_string(
             self.config.ACS_CONNECTION_STRING
         )
-        self.call_handler = CallHandler(
-            self.config, 
-            self.call_automation_client
-        )
+        self.call_handler = CallHandler(self.config, self.call_automation_client)
         self.openai_service = OpenAIService(self.config)
-        
+
         # Initialize event handlers with all required services
         self.event_handlers = EventHandlers(
             call_handler=self.call_handler,
             cache_service=self.cache_service,
-            openai_service=self.openai_service
+            openai_service=self.openai_service,
         )
-        
+
         self.setup_routes()
         self.logger.info("Application initialized successfully V0.15")
 
@@ -48,8 +47,12 @@ class CallAutomationApp:
         """Set up application routes"""
         self.app.route("/")(self.hello)
         self.app.route("/robots933456.txt")(self.health_check)
-        self.app.route("/api/callbacks/<context_id>", methods=["POST"])(self.handle_callback)
-        self.app.route("/api/incomingCall", methods=["POST"])(self.incoming_call_handler)
+        self.app.route("/api/callbacks/<context_id>", methods=["POST"])(
+            self.handle_callback
+        )
+        self.app.route("/api/incomingCall", methods=["POST"])(
+            self.incoming_call_handler
+        )
 
     async def hello(self):
         """Health check endpoint"""
@@ -60,53 +63,80 @@ class CallAutomationApp:
         """Health check endpoint for Azure App Service"""
         self.logger.info("health_check")
         return Response(
-            response="Healthy",
-            status=200,
-            headers={"Content-Type": "text/plain"}
+            response="Healthy", status=200, headers={"Content-Type": "text/plain"}
         )
-    
+
     async def incoming_call_handler(self):
         """Handle incoming calls"""
         self.logger.info("incoming_call_handler")
         try:
-            request_data = await request.json
-            self.logger.info(f"Received incoming call request: {json.dumps(request_data)}")
-            
+            # Get the raw request data as JSON
+            request_data = await request.get_json()
+            self.logger.info(
+                f"Received incoming call request: {json.dumps(request_data)}"
+            )
+
+            # If request_data is not a list, wrap it in a list
+            if not isinstance(request_data, list):
+                request_data = [request_data]
+
             for event_dict in request_data:
-                event = EventGridEvent.from_dict(event_dict)
-                self.logger.info(f"event = {event}")
-                
-                if event.event_type == SystemEventNames.EventGridSubscriptionValidationEventName:
-                    self.logger.info(f"event.event_type: {SystemEventNames.EventGridSubscriptionValidationEventName}")
-                    validation_code = event.data["validationCode"]
-                    self.logger.info(f"Handling validation request with code: {validation_code}")
-                    return Response(
-                        response={"validationResponse": validation_code},
-                        status=StatusCodes.OK
-                    )
-                
-                elif event.event_type == EventTypes.INCOMING_CALL:
-                    try:
-                        self.logger.info(f"event.event_type: {EventTypes.INCOMING_CALL}")
+                self.logger.info(f"Processing event: {json.dumps(event_dict)}")
+
+                # Create EventGridEvent directly from the dictionary
+                try:
+                    event = EventGridEvent.from_dict(event_dict)
+                    self.logger.info(f"Parsed event: {event}")
+
+                    if (
+                        event.event_type
+                        == SystemEventNames.EventGridSubscriptionValidationEventName
+                    ):
+                        self.logger.info("Handling validation event")
+                        validation_code = event.data["validationCode"]
+                        self.logger.info(f"Validation code: {validation_code}")
+                        return Response(
+                            response=json.dumps(
+                                {"validationResponse": validation_code}
+                            ),
+                            status=StatusCodes.OK,
+                            headers={"Content-Type": "application/json"},
+                        )
+
+                    elif event.event_type == EventTypes.INCOMING_CALL:
+                        self.logger.info("Handling incoming call event")
                         await self._process_incoming_call(event)
                         return Response(status=StatusCodes.OK)
-                    except AzureError as ae:
-                        self.logger.error(f"Azure service error in incoming call: {str(ae)}", exc_info=True)
-                        return Response(
-                            response={"error": "Azure service error", "details": str(ae)},
-                            status=StatusCodes.SERVER_ERROR
-                        )
-                    except Exception as e:
-                        self.logger.error(f"Error processing incoming call: {str(e)}", exc_info=True)
-                        return Response(
-                            response={"error": "Internal server error", "details": str(e)},
-                            status=StatusCodes.SERVER_ERROR
-                        )
-        except Exception as e:
-            self.logger.error(f"Error in incoming call handler: {str(e)}", exc_info=True)
+
+                except Exception as e:
+                    self.logger.error(
+                        f"Error processing event dict: {str(e)}", exc_info=True
+                    )
+                    return Response(
+                        response=json.dumps(
+                            {"error": "Error processing event", "details": str(e)}
+                        ),
+                        status=StatusCodes.SERVER_ERROR,
+                        headers={"Content-Type": "application/json"},
+                    )
+
+            # If we get here, no events were processed
             return Response(
-                response={"error": "Internal server error", "details": str(e)},
-                status=StatusCodes.SERVER_ERROR
+                response=json.dumps({"error": "No valid events found in request"}),
+                status=StatusCodes.BAD_REQUEST,
+                headers={"Content-Type": "application/json"},
+            )
+
+        except Exception as e:
+            self.logger.error(
+                f"Error in incoming call handler: {str(e)}", exc_info=True
+            )
+            return Response(
+                response=json.dumps(
+                    {"error": "Internal server error", "details": str(e)}
+                ),
+                status=StatusCodes.SERVER_ERROR,
+                headers={"Content-Type": "application/json"},
             )
 
     async def handle_callback(self, context_id: str):
@@ -115,27 +145,27 @@ class CallAutomationApp:
             self.logger.info(f"Received callback for context: {context_id}")
             events = await request.json
             self.logger.info(f"Callback events: {json.dumps(events)}")
-            
+
             caller_id = self._normalize_caller_id(request.args.get("callerId", ""))
             self.logger.info(f"Processing callback for caller: {caller_id}")
-            
+
             for event_dict in events:
                 event = CloudEvent.from_dict(event_dict)
                 try:
                     await self._process_event(event, caller_id)
                 except Exception as e:
                     self.logger.error(
-                        f"Error processing event type {event.type}: {str(e)}", 
-                        exc_info=True
+                        f"Error processing event type {event.type}: {str(e)}",
+                        exc_info=True,
                     )
-            
+
             return Response(status=StatusCodes.OK)
-            
+
         except Exception as e:
             self.logger.error(f"Error in callback handler: {str(e)}", exc_info=True)
             return Response(
                 response={"error": "Internal server error", "details": str(e)},
-                status=StatusCodes.SERVER_ERROR
+                status=StatusCodes.SERVER_ERROR,
             )
 
     async def _process_event(self, event: CloudEvent, caller_id: str):
@@ -147,22 +177,21 @@ class CallAutomationApp:
             EventTypes.PLAY_COMPLETED: self.event_handlers.handle_play_completed,
             EventTypes.RECOGNIZE_FAILED: self.event_handlers.handle_recognize_failed,
             EventTypes.CALL_DISCONNECTED: self.event_handlers.handle_call_disconnected,
-            EventTypes.PARTICIPANTS_UPDATED: self.event_handlers.handle_participants_updated
+            EventTypes.PARTICIPANTS_UPDATED: self.event_handlers.handle_participants_updated,
         }
-        
+
         handler = event_handlers.get(event.type)
         if handler:
             try:
                 await handler(event, caller_id)
             except Exception as e:
                 self.logger.error(
-                    f"Error in event handler for {event.type}: {str(e)}", 
-                    exc_info=True
+                    f"Error in event handler for {event.type}: {str(e)}", exc_info=True
                 )
                 raise
         else:
-            self.logger.warning(f"No handler found for event type: {event.type}") 
-    
+            self.logger.warning(f"No handler found for event type: {event.type}")
+
     async def _answer_call_async(self, incoming_call_context, callback_url):
         self.logger.info("_answer_call_async event")
         # Directly assign without awaiting
@@ -175,20 +204,26 @@ class CallAutomationApp:
     async def _process_incoming_call(self, event: EventGridEvent):
         """Process incoming call event"""
         self.logger.info("_process_incoming_call event")
-        
+
         try:
             caller_id = self._extract_caller_id(event.data)
             incoming_call_context = event.data["incomingCallContext"]
             callback_uri = self._generate_callback_uri(caller_id)
 
             # Call _answer_call_async and remove await
-            answer_call_result = await self._answer_call_async(incoming_call_context, callback_uri)
-            
+            answer_call_result = await self._answer_call_async(
+                incoming_call_context, callback_uri
+            )
+
             # Log the successful call connection
-            self.logger.info(f"Answered call for connection id: {answer_call_result.call_connection_id}")
-            
+            self.logger.info(
+                f"Answered call for connection id: {answer_call_result.call_connection_id}"
+            )
+
         except Exception as e:
-            self.logger.error(f"Error in _process_incoming_call: {str(e)}", exc_info=True)
+            self.logger.error(
+                f"Error in _process_incoming_call: {str(e)}", exc_info=True
+            )
             raise
 
     def _extract_caller_id(self, event_data: dict) -> str:
