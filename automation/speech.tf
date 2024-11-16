@@ -1,8 +1,8 @@
-#Speech, SpeechServices
-resource "azurerm_cognitive_account" "SpeechServices" {
+#Speech, CognitiveServices
+resource "azurerm_cognitive_account" "CognitiveServices" {
   resource_group_name           = azurerm_resource_group.rg.name
   custom_subdomain_name         = "${local.name_prefix}-ai-voice-${random_string.unique.result}"
-  kind                          = "SpeechServices"
+  kind                          = "CognitiveServices"
   local_auth_enabled            = true
   location                      = var.voice_location
   name                          = "${local.name_prefix}-ai-voice"
@@ -20,6 +20,6 @@ resource "azurerm_cognitive_account" "SpeechServices" {
   }
 }
 
-output "speech_deployment_id" {
-  value = azurerm_cognitive_account.SpeechServices.id
+output "cognitive_deployment_id" {
+  value = azurerm_cognitive_account.CognitiveServices.id
 }

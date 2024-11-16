@@ -98,7 +98,6 @@ class EventHandlers:
         except Exception as e:
             self.logger.error(f"Error in handle_participants_updated: {str(e)}", exc_info=True)
 
-
     async def handle_recognize_completed(self, event: CloudEvent, caller_id: str) -> None:
         """Handle recognize completed event"""
         if event.data["recognitionType"] == "speech":

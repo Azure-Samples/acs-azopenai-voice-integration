@@ -6,3 +6,4 @@ automation/.terraform/
 api/__pycache__/**
 api/__pycache__/
 .vscode/
+venv3/

@@ -21,7 +21,7 @@ resource "azurecaf_name" "web_name" {
 }
 
 resource "azurerm_linux_web_app" "web" {
-  name                = azurecaf_name.web_name.result
+  name                = var.resource_token
   location            = var.location
   resource_group_name = var.rg_name
   service_plan_id     = var.appservice_plan_id
@@ -37,6 +37,8 @@ resource "azurerm_linux_web_app" "web" {
       python_version = var.python_version
     }
     # health_check_path = var.health_check_path
+
+
   }
 
   app_settings = var.app_settings

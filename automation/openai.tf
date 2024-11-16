@@ -83,7 +83,9 @@ resource "azurerm_cognitive_deployment" "openai_deployments" {
   }
 
 }
-
+output "open_ai_deployments" {
+  value = azurerm_cognitive_deployment.openai_deployments
+}
 resource "azurerm_monitor_diagnostic_setting" "settings" {
   name                       = "${local.name_prefix}-openai-diagnostic"
   target_resource_id         = azurerm_cognitive_account.openai.id

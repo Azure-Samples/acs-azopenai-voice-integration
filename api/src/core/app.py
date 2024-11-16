@@ -48,9 +48,7 @@ class CallAutomationApp:
         """Set up application routes"""
         self.app.route("/")(self.hello)
         self.app.route("/robots933456.txt")(self.health_check)
-        
         self.app.route("/api/callbacks/<context_id>", methods=["POST"])(self.handle_callback)
-
         self.app.route("/api/incomingCall", methods=["POST"])(self.incoming_call_handler)
 
     async def hello(self):
@@ -215,70 +213,3 @@ class CallAutomationApp:
     def run(self, host: str = "0.0.0.0", port: int = 8000):
         """Run the application"""
         self.app.run(host=host, port=port)
-
-    # async def check_services_health(self):
-    #     """Check the health of all dependent services"""
-    #     health_status = {
-    #         "status": "healthy",
-    #         "services": {
-    #             "acs": "healthy",
-    #             "openai": "healthy",
-    #             "cache": "healthy"
-    #         },
-    #         "details": {}
-    #     }
-        
-    #     try:
-    #         # Check ACS Connection
-    #         await self.call_automation_client.get_supported_languages()
-    #     except Exception as e:
-    #         health_status["services"]["acs"] = "unhealthy"
-    #         health_status["details"]["acs_error"] = str(e)
-    #         health_status["status"] = "degraded"
-
-    #     try:
-    #         # Check OpenAI Connection
-    #         await self.openai_service.get_chat_completion("test")
-    #     except Exception as e:
-    #         health_status["services"]["openai"] = "unhealthy"
-    #         health_status["details"]["openai_error"] = str(e)
-    #         health_status["status"] = "degraded"
-
-    #     try:
-    #         # Check Cache Service
-    #         await self.cache_service.get("test")
-    #     except Exception as e:
-    #         health_status["services"]["cache"] = "unhealthy"
-    #         health_status["details"]["cache_error"] = str(e)
-    #         health_status["status"] = "degraded"
-
-    #     return health_status
-
-    # async def health_check(self):
-    #     """Health check endpoint"""
-    #     try:
-    #         # For Azure's specific health probe
-    #         if request.path == "/robots933456.txt":
-    #             return Response(
-    #                 response="Healthy",
-    #                 status=200,
-    #                 headers={"Content-Type": "text/plain"}
-    #             )
-
-    #         # For detailed health check
-    #         health_status = await self.check_services_health()
-            
-    #         return Response(
-    #             response=json.dumps(health_status),
-    #             status=200 if health_status["status"] == "healthy" else 503,
-    #             headers={"Content-Type": "application/json"}
-    #         )
-    #     except Exception as e:
-    #         return Response(
-    #             response=json.dumps({
-    #                 "status": "unhealthy",
-    #                 "error": str(e)
-    #             }),
-    #             status=503,
-    #             headers={"Content-Type": "application/json"}
-    #         )        
