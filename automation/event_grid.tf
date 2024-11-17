@@ -22,5 +22,4 @@ resource "azurerm_eventgrid_system_topic_event_subscription" "webapp_event_subsc
     max_delivery_attempts = 5
     event_time_to_live    = 1440
   }
-
 }
