@@ -5,16 +5,19 @@ from ..config.constants import EventTypes, ConversationPrompts
 from ..services.call_handler import CallHandler
 from ..services.cache_service import CacheService
 from ..services.openai_service import OpenAIService
+from ..services.cosmosdb_service import CosmosDBService
 from ..utils.logger import setup_logger
 class EventHandlers:
     """Handles different types of call automation events"""
     def __init__(self, 
                  call_handler: CallHandler, 
                  cache_service: CacheService,
-                 openai_service: OpenAIService):
+                 openai_service: OpenAIService,
+                 cosmosdb_service: CosmosDBService):
         self.call_handler = call_handler
         self.cache_service = cache_service
         self.openai_service = openai_service
+        self.cosmosdb_service = cosmosdb_service
         self.max_retry = 2
         self._setup_context_handlers()
         # Initialize logger
@@ -48,30 +51,38 @@ class EventHandlers:
     #         context="InitialGreeting"
     #     )
 
-    async def handle_call_connected(self, event: CloudEvent, caller_id: str) -> None:
+    async def handle_call_connected(self, event: CloudEvent, phone_number: str) -> None:
         """
         Handle call connected event with proper error handling
         Args:
             event: CloudEvent containing call data
-            caller_id: Caller's phone number
+            phone_number: Caller or Target's phone number depending on whether it's an incoming or outgoing call
         """
         try:
             call_connection_id = event.data.get("callConnectionId")
             if not call_connection_id:
                 self.logger.error("Missing callConnectionId in CallConnected event")
                 return
-
+            # Create a new session in CosmosDB
+            session_id = self.cosmosdb_service.create_new_session(phone_number)
             # Initialize the conversation state
             await self.cache_service.set("call_active", True)
+            await self.cache_service.set("current_session_id", session_id)
             await self.cache_service.set("current_call_id", call_connection_id)
+            result = None  # Initialize result
 
-            # Get and play initial greeting
-            result = await self.call_handler.handle_recognize(
-                ConversationPrompts.HELLO,
-                caller_id,
-                call_connection_id,
-                context="InitialGreeting"
-            )
+            participant_id = await self.cache_service.get("participant_id")
+            
+
+            if participant_id:
+                result = await self.call_handler.handle_recognize(
+                    ConversationPrompts.HELLO,
+                    participant_id,
+                    call_connection_id,
+                    context="InitialGreeting"
+                )
+            else:
+                self.logger.info("Participant ID not available yet. Waiting for ParticipantsUpdated event.")
             
             if result is None:
                 self.logger.error("Initial greeting recognition failed")
@@ -83,10 +94,14 @@ class EventHandlers:
                 await self.call_handler.hangup(call_connection_id)
 
     async def handle_participants_updated(self, event: CloudEvent, caller_id: str) -> None:
-        """Handle participants updated event"""
+        """Handle participants updated event""" 
         try:
             call_connection_id = event.data.get("callConnectionId")
             participants = event.data.get("participants", [])
+            for participant in participants:
+                if participant['identifier']['rawId'].split(":")[1] == caller_id:
+                    participant_id = participant['identifier']['rawId'].split(":")[1]
+                    await self.cache_service.set("participant_id", participant_id)
             
             # Log participants update
             self.logger.info(f"Participants updated for call {call_connection_id}")
@@ -101,8 +116,16 @@ class EventHandlers:
     async def handle_recognize_completed(self, event: CloudEvent, caller_id: str) -> None:
         """Handle recognize completed event"""
         if event.data["recognitionType"] == "speech":
+            # Log user message to CosmosDB
+            speech_result = event.data.get("speechResult", {})
+            speech_text = speech_result.get("speech")
+            session_id = await self.cache_service.get("current_session_id")
+            if session_id and speech_text:
+                self.cosmosdb_service.append_message_to_session(
+                    session_id, caller_id, "user", speech_text
+                )
             await self._handle_speech_recognition(event, caller_id)
-        elif event.data["recognitionType"] == "dtmf":
+        elif event.data["recognitionType"] == "dxtmf":
             await self._handle_dtmf_recognition(event, caller_id)
 
     async def _handle_speech_recognition(self, event: CloudEvent, caller_id: str) -> None:
@@ -285,6 +308,15 @@ class EventHandlers:
         """Handle play completed event"""
         context = event.data["operationContext"]
         call_connection_id = event.data["callConnectionId"]
+
+        # Log the playback completion or message played
+        session_id = await self.cache_service.get("current_session_id")
+        if session_id:
+            # You might store the message that was played in cache or retrieve it from the context
+            # For this example, we'll log a generic message
+            self.cosmosdb_service.append_message_to_session(
+                session_id, caller_id, "application", f"Playback completed for context: {context}"
+            )
 
         handler = self.play_completed_handlers.get(context)
         if handler:

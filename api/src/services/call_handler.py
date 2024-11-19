@@ -79,7 +79,7 @@ class CallHandler:
             )
             
             connection = self.call_automation_client.get_call_connection(call_connection_id)
-            result = await connection.start_recognizing_media(
+            result =  connection.start_recognizing_media(
                 input_type=RecognizeInputType.SPEECH,
                 target_participant=PhoneNumberIdentifier(caller_id),
                 end_silence_timeout=self.config.END_SILENCE_TIMEOUT,
