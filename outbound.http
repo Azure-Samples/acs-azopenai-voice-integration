@@ -27,6 +27,6 @@ Content-Type: application/json
     "skills": "['furniture design', 'build classic-style ornaments', '8 years of experience as carpenter', 'sculpting experience desireable but not required']",
     "responsibility": "lead a team of 5 carpenters building the interior furniture for Donald Trump's new hotel",
     "sector": "Construction",
-    "phone_number": "+447976262941",
+    "phone_number": "+<add number>",
     "remote_onsight_status": "On-site"
 }
