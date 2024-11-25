@@ -19,7 +19,7 @@ class CallHandler:
         call_connection_id: str,
         text_to_play: str,
         context: str
-    ) -> None:
+    ) -> Optional[dict]:
         """
         Handle playing text to the call
         Args:
@@ -44,9 +44,11 @@ class CallHandler:
                 play_source,
                 operation_context=context
             )
+            return {'data': '200 OK'}
             
         except Exception as ex:
             print(f"Error in handle_play: {ex}")
+            return {'Error in handle_play': ex}
             # Could add more sophisticated error handling here
 
     async def handle_recognize(
@@ -85,13 +87,47 @@ class CallHandler:
                 end_silence_timeout=self.config.END_SILENCE_TIMEOUT,
                 play_prompt=play_source,
                 operation_context=context,
+                #interrupt_prompt=True,
+                #initial_silence_timeout=30
             )
-            
-            return result
+                     
+            return {'data': '200 OK'}
             
         except Exception as ex:
             print(f"Error in recognize: {ex}")
-            return None
+            return {'Error in recognize': ex}
+        
+    
+    async def handle_communicate(
+        self,
+        reply_text: str,
+        call_connection_id: str,
+        context: str = "",
+        caller_id: Optional[str] = None
+    ) -> Optional[dict]:
+        """Evaluates if it should use handle_recognize or handle_play based on the context"""
+        if "goalAchieved" in context:
+            await self.handle_play(
+                call_connection_id=call_connection_id,
+                text_to_play=reply_text,
+                context=context
+            )
+            
+        #elif "endCall" in context:
+        #    await handle_play(
+        #        call_connection_id=call_connection_id,
+        #        text_to_play=text_to_play,
+        #        context=context
+        #    )
+            
+        else:
+            await self.handle_recognize(
+                reply_text=reply_text,
+                caller_id=caller_id,
+                call_connection_id=call_connection_id,
+                context=context
+            )
+        
 
 
 
