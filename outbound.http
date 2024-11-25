@@ -1,4 +1,32 @@
-POST http://localhost:8080/api/initiateOutboundCall
+POST http://localhost:8000/api/initiateOutboundCall
 Content-Type: application/json
 
-{}
+{
+    "candidate_name": "Fatos",
+    "job_role": "Carpenter",
+    "company": "Donald Trump Hotel",
+    "location": "London",
+    "rate": "£15 per hour",
+    "skills": "['furniture design', 'build classic-style ornaments', '8 years of experience as carpenter', 'sculpting experience desireable but not required']",
+    "responsibility": "lead a team of 5 carpenters building the interior furniture for Donald Trump's new hotel",
+    "sector": "Construction",
+    "phone_number": "+447427404900",
+    "remote_onsight_status": "On-site"
+}
+
+### web app http call
+POST http://localhost:8000/api/initiateOutboundCall
+Content-Type: application/json
+
+{
+    "candidate_name": "Jose",
+    "job_role": "plumber",
+    "company": "Donald Trump Hotel",
+    "location": "London",
+    "rate": "£15 per hour",
+    "skills": "['furniture design', 'build classic-style ornaments', '8 years of experience as carpenter', 'sculpting experience desireable but not required']",
+    "responsibility": "lead a team of 5 carpenters building the interior furniture for Donald Trump's new hotel",
+    "sector": "Construction",
+    "phone_number": "+447976262941",
+    "remote_onsight_status": "On-site"
+}
