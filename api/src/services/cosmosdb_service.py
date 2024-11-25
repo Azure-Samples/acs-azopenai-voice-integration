@@ -16,9 +16,9 @@ class CosmosDBService:
             offer_throughput=400,
         )
 
-    def create_new_session(self, caller_id: str):
+    def create_new_session(self, caller_id: str, acs_connection_id: str):
         """Create a new session in CosmosDB."""
-        session_id = str(uuid.uuid4())
+        session_id = acs_connection_id
         session = {
             "id": session_id,
             "callerId": caller_id,

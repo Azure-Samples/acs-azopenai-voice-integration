@@ -4,7 +4,7 @@ from typing import Dict, Any, Callable, Optional
 import json
 from ..config.constants import EventTypes, ConversationPrompts
 from ..services.call_handler import CallHandler
-from ..services.cache_service_old import CacheService
+from ..services.cache_service import CacheService
 from ..services.openai_service import OpenAIService
 from ..services.cosmosdb_service import CosmosDBService
 from ..utils.helpers import AgentPersonaType
