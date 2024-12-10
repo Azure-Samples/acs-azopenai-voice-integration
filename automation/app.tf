@@ -101,7 +101,7 @@ resource "null_resource" "deploy_app" {
 #https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/ai-machine-learning#cognitive-services-contributor
 # Assign Cognitive Services Contributor role to the Web App
 resource "azurerm_role_assignment" "cognitive_services_contributor" {
-  depends_on         = [null_resource.deploy_app]
+  depends_on         = [module.api]
   scope              = azurerm_cognitive_account.openai.id
   role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68"
   principal_id       = module.api.IDENTITY_PRINCIPAL_ID
@@ -109,14 +109,14 @@ resource "azurerm_role_assignment" "cognitive_services_contributor" {
 
 # Assign Cognitive Services OpenAI Contributor role to the Web App
 resource "azurerm_role_assignment" "openai_contributor" {
-  depends_on         = [null_resource.deploy_app]
+  depends_on         = [module.api]
   scope              = azurerm_cognitive_account.openai.id
   role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/a001fd3d-188f-4b5d-821b-7da978bf7442"
   principal_id       = module.api.IDENTITY_PRINCIPAL_ID
 }
 
 resource "azurerm_role_assignment" "multi_cognitive_services_contributor" {
-  depends_on         = [null_resource.deploy_app]
+  depends_on         = [module.api]
   scope              = azurerm_cognitive_account.CognitiveServices.id
   role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68"
   principal_id       = module.api.IDENTITY_PRINCIPAL_ID
@@ -124,7 +124,7 @@ resource "azurerm_role_assignment" "multi_cognitive_services_contributor" {
 
 # Assign Cognitive Services OpenAI Contributor role to the Web App
 resource "azurerm_role_assignment" "speech_contributor" {
-  depends_on         = [null_resource.deploy_app]
+  depends_on         = [module.api]
   scope              = azurerm_cognitive_account.CognitiveServices.id
   role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/0e75ca1e-0464-4b4d-8b93-68208a576181"
   principal_id       = module.api.IDENTITY_PRINCIPAL_ID

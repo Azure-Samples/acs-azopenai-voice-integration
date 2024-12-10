@@ -72,3 +72,5 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 2024-11-16 21:34:15,097 - src.core.app - INFO - Handling validation event
 2024-11-16 21:34:15,108 - src.core.app - INFO - Validation code: 123456
 2024-11-16 21:34:40,202 - src.core.app - INFO - Application initialized successfully V0.15
+2024-12-10 14:50:28,344 - src.core.app - INFO - Application initialized successfully V0.15
+2024-12-10 14:51:14,131 - src.core.app - INFO - async def hello
