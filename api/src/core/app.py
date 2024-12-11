@@ -4,15 +4,20 @@ from urllib.parse import urlencode
 from quart import Quart, Response, request
 from azure.eventgrid import EventGridEvent, SystemEventNames
 from azure.core.messaging import CloudEvent
-from azure.communication.callautomation import CallAutomationClient
+from azure.communication.callautomation import (
+    PhoneNumberIdentifier,
+    CallAutomationClient
+)
 from azure.core.exceptions import AzureError
+import asyncio
 
 from src.config.settings import Config
-from src.config.constants import EventTypes, StatusCodes
+from src.config.constants import EventTypes, StatusCodes, ApiPayloadKeysForValidation
 from src.services.call_handler import CallHandler
 from src.services.cache_service import CacheService
 from src.services.openai_service import OpenAIService
 from src.core.event_handlers import EventHandlers
+from src.services.cosmosdb_service import CosmosDBService
 
 from src.utils.logger import setup_logger
 
@@ -33,11 +38,16 @@ class CallAutomationApp:
         self.call_handler = CallHandler(self.config, self.call_automation_client)
         self.openai_service = OpenAIService(self.config)
 
+        # Initialize CosmosDBService
+        self.cosmosdb_service = CosmosDBService(self.config)
+
+
         # Initialize event handlers with all required services
         self.event_handlers = EventHandlers(
             call_handler=self.call_handler,
             cache_service=self.cache_service,
             openai_service=self.openai_service,
+            cosmosdb_service=self.cosmosdb_service,
         )
 
         self.setup_routes()
@@ -53,6 +63,10 @@ class CallAutomationApp:
         self.app.route("/api/incomingCall", methods=["POST"])(
             self.incoming_call_handler
         )
+        self.app.route("/api/initiateOutboundCall", methods=["POST"])(
+            self.initiate_outbound_call
+        )
+        
 
     async def hello(self):
         """Health check endpoint"""
@@ -65,6 +79,7 @@ class CallAutomationApp:
         return Response(
             response="Healthy", status=200, headers={"Content-Type": "text/plain"}
         )
+    ## Add incoming_call_handler ##
 
     async def incoming_call_handler(self):
         """Handle incoming calls"""
@@ -139,6 +154,121 @@ class CallAutomationApp:
                 headers={"Content-Type": "application/json"},
             )
 
+    ## Add outgoing_call_handler ##
+    def _validate_payload(self, payload_dict: dict) -> None:
+        """
+        Validate the payload dictionary.
+        Args:
+            payload_dict (dict): The payload dictionary.
+        Returns:
+            None
+        """
+        required_keys = ApiPayloadKeysForValidation.API_KEYS
+        
+        for key in required_keys:
+            if key not in payload_dict:
+                raise ValueError(f"Missing required key: {key}")
+    
+    async def _wait_for_cache(self, key: str, timeout:int=5):
+        """Wait until the cache is set for a given key"""
+        for _ in range(timeout):
+            value = await self.cache_service.get(key)
+            if value is not None:
+                return True
+            await asyncio.sleep(1)
+        return False
+
+    async def initiate_outbound_call(self):
+        """Initiate an outbound call"""
+        self.logger.info("initiate_outbound_call")
+        try:
+            # extract the payload
+            payload_dict = await request.get_json()
+            # validate against expected payload
+            self._validate_payload(payload_dict=payload_dict)
+            self.logger.info(f"Received payload: {json.dumps(payload_dict)}")
+            
+            # set the data in the cache for keys, job data and candidate data
+            await self.cache_service.set(key="payload_dict", value=payload_dict)
+            await self.cache_service.set(key="job_data_dict", value={key: payload_dict[key] for key in ApiPayloadKeysForValidation.JOB_DATA_KEYS})
+            await self.cache_service.set(key="candidate_data_dict", value={key: payload_dict[key] for key in ApiPayloadKeysForValidation.CANDIDATE_DATA_KEYS})
+            self.config.TARGET_CANDIDATE_PHONE_NUMBER = payload_dict.get("phone_number")
+            
+            # await for data to be cached asynchrounously
+            #await self._wait_for_cache(key="payload_dict")
+            
+            # Get the target participant and source caller            
+            target_participant = PhoneNumberIdentifier(self.config.TARGET_CANDIDATE_PHONE_NUMBER)
+            source_caller = PhoneNumberIdentifier(self.config.AGENT_PHONE_NUMBER)
+            
+            
+            # Generate a callback URI with a unique context ID
+            guid = uuid.uuid4()
+            query_parameters = urlencode({"calleeId": self.config.TARGET_CANDIDATE_PHONE_NUMBER})
+            callback_uri = f"{self.config.CALLBACK_EVENTS_URI}/{guid}?{query_parameters}"
+
+            call_connection_properties = self.call_automation_client.create_call(
+                target_participant=target_participant,
+                source_caller_id_number=source_caller,
+                # call_invite=call_invite,
+                callback_url=callback_uri,
+                cognitive_services_endpoint=self.config.COGNITIVE_SERVICE_ENDPOINT
+            )
+
+            self.logger.info(f"Outbound call initiated with connection ID: {call_connection_properties.call_connection_id}")
+
+            # Simulate an Event Grid event for the outbound call
+            event = EventGridEvent(
+                subject="OutboundCall",
+                event_type=EventTypes.CALL_CONNECTED,
+                data={
+                    "callConnectionId": call_connection_properties.call_connection_id,
+                    "to": {"rawId": self.config.TARGET_CANDIDATE_PHONE_NUMBER},
+                    "outboundCallContext": None,  # Not needed for outbound calls
+                },
+                data_version="1.0"
+            )
+            await self._process_outbound_call(event)
+
+            return Response(status=StatusCodes.OK)
+
+        except Exception as e:
+            self.logger.error(
+                f"Error initiating outbound call: {str(e)}", exc_info=True
+            )
+            return Response(
+                response=json.dumps(
+                    {"error": "Error initiating outbound call", "details": str(e)}
+                ),
+                status=StatusCodes.SERVER_ERROR,
+                headers={"Content-Type": "application/json"},
+            )
+
+    async def _process_outbound_call(self, event: EventGridEvent):
+        """Process outbound call connected event"""
+        self.logger.info("_process_outbound_call event")
+
+        try:
+            callee_id = self.config.TARGET_CANDIDATE_PHONE_NUMBER
+            session_id = self.cosmosdb_service.create_new_session(callee_id, event.data["callConnectionId"])
+
+            call_connection_id = event.data["callConnectionId"]
+
+            await self.cache_service.set("participant_id", self.config.TARGET_CANDIDATE_PHONE_NUMBER) 
+
+            await self.cache_service.set("current_session_id", session_id)
+            await self.cache_service.set("current_call_id", call_connection_id)
+
+            self.logger.info(f"New session created with ID: {session_id}")
+
+            # Start the conversation
+            #await self.event_handlers.handle_call_connected(event, callee_id)
+        except Exception as e:
+            self.logger.error(
+                f"Error in _process_outbound_call: {str(e)}", exc_info=True
+            )
+            raise
+
     async def handle_callback(self, context_id: str):
         """Handle callbacks from the call automation service"""
         try:
@@ -146,13 +276,14 @@ class CallAutomationApp:
             events = await request.json
             self.logger.info(f"Callback events: {json.dumps(events)}")
 
-            caller_id = self._normalize_caller_id(request.args.get("callerId", ""))
-            self.logger.info(f"Processing callback for caller: {caller_id}")
+            # caller_id = self._normalize_caller_id(request.args.get("callerId", ""))
+            callee_id = await self.cache_service.get("participant_id")
+            # self.logger.info(f"Processing callback for caller: {caller_id}")
 
             for event_dict in events:
                 event = CloudEvent.from_dict(event_dict)
                 try:
-                    await self._process_event(event, caller_id)
+                    await self._process_event(event, callee_id)
                 except Exception as e:
                     self.logger.error(
                         f"Error processing event type {event.type}: {str(e)}",
@@ -207,6 +338,8 @@ class CallAutomationApp:
 
         try:
             caller_id = self._extract_caller_id(event.data)
+            #session_id = self.cosmosdb_service.create_new_session(caller_id, event.data["callConnectionId"])
+
             incoming_call_context = event.data["incomingCallContext"]
             callback_uri = self._generate_callback_uri(caller_id)
 
@@ -245,6 +378,6 @@ class CallAutomationApp:
             caller_id = "+" + caller_id
         return caller_id
 
-    def run(self, host: str = "0.0.0.0", port: int = 8000):
+    def run(self, host: str = "0.0.0.0", port: int = 8080):
         """Run the application"""
         self.app.run(host=host, port=port)

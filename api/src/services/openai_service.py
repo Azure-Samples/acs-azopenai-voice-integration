@@ -1,6 +1,8 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from openai import AsyncAzureOpenAI
 from ..config.settings import Config
+from ..config.constants import OpenAIPrompts
+from ..utils.helpers import AgentPersonaType
 
 class OpenAIService:
     """Service for handling OpenAI API interactions"""
@@ -12,16 +14,52 @@ class OpenAIService:
             azure_endpoint=config.AZURE_OPENAI_SERVICE_ENDPOINT
         )
         self.chat_history: List[Dict[str, Any]] = []
+        self.system_message_dict = OpenAIPrompts.system_message_dict
         self._initialize_chat_history()
+        
 
-    def _initialize_chat_history(self):
-        """Initialize chat history with system message"""
+    def _initialize_chat_history(
+        self, 
+        system_prompt_str: str = "You are a helpful AI assistant.",
+    ) -> None:
+        """Initialize chat history with system message defined by the agent persona of choice"""
         self.chat_history = [{
             "role": "system",
-            "content": self.SYSTEM_MESSAGE
+            "content": system_prompt_str
         }]
 
-    async def get_chat_completion(self, user_prompt: str, max_length: int = 200) -> str:
+    def update_agent_persona(
+        self, 
+        agent_persona: AgentPersonaType,
+        assistant_message_to_include: Optional[str] = None,
+        user_message_to_include: Optional[str] = None
+    ) -> None:
+        """Update the agent persona for the conversation
+        Args:
+            agent_persona: Agent persona type
+            assistant_message_to_include: Optional assistant message to include in the chat history
+            user_message_to_include: Optional user message to include in the chat history
+        """
+        self.chat_history.clear()
+        agent = agent_persona.value
+        self._initialize_chat_history(self.system_message_dict[agent])
+        if assistant_message_to_include:
+            self.chat_history.append({
+                "role": "assistant",
+                "content": assistant_message_to_include
+            })
+        if user_message_to_include:
+            self.chat_history.append({
+                "role": "user",
+                "content": user_message_to_include
+            })
+        
+    
+    async def get_chat_completion(
+        self, 
+        user_prompt: str, 
+        max_length: int = 200
+    ) -> str:
         """
         Get chat completion from Azure OpenAI
         Args:
@@ -55,25 +93,8 @@ class OpenAIService:
             print(f"Error in OpenAI API call: {ex}")
             return ""
 
-    # System message for the AI assistant
-    SYSTEM_MESSAGE = """
-    ## CONTEXT ## 
-    You are Emily, one of the new voice Assistants at SThree. You are helping a job seeker with a job role that matches their skillset. You will ask them some questions and share some details about the role. You will also answer their questions and share some information. Always wait for the job seeker's response before proceeding to the next part of the conversation.
+
+
+
+
     
-    ## CONVERSATION FLOW ## 
-    1. Initial greeting and job role mention
-    2. Ask for recording consent
-    3. Location verification
-    4. Job details sharing
-    5. Candidate interest confirmation
-    6. Skills and experience discussion
-    7. Competency-based questions
-    8. Next steps and closure
-    
-    ## GUIDELINES ## 
-    - Maintain a polite and friendly tone
-    - Use clear and concise language
-    - Focus on job-relevant information
-    - Be respectful of candidate's time
-    - Handle objections professionally
-    """
