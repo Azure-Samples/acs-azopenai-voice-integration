@@ -31,12 +31,12 @@ class CallAutomationApp:
         self.logger = setup_logger(__name__)
 
         # Initialize services
-        self.cache_service = CacheService()
+        self.cache_service = CacheService(self.config.REDIS_URL, self.config.REDIS_PASSWORD)
         self.call_automation_client = CallAutomationClient.from_connection_string(
             self.config.ACS_CONNECTION_STRING
         )
         self.call_handler = CallHandler(self.config, self.call_automation_client)
-        self.openai_service = OpenAIService(self.config)
+        self.openai_service = OpenAIService(self.config, self.cache_service)
 
         # Initialize CosmosDBService
         self.cosmosdb_service = CosmosDBService(self.config)
@@ -186,6 +186,7 @@ class CallAutomationApp:
             # validate against expected payload
             self._validate_payload(payload_dict=payload_dict)
             self.logger.info(f"Received payload: {json.dumps(payload_dict)}")
+<<<<<<< Updated upstream
 
             # set the data in the cache for keys, job data and candidate data
             await self.cache_service.set(key="payload_dict", value=payload_dict)
@@ -203,6 +204,13 @@ class CallAutomationApp:
                     for key in ApiPayloadKeysForValidation.CANDIDATE_DATA_KEYS
                 },
             )
+=======
+            
+            # # set the data in the cache for keys, job data and candidate data
+            # await self.cache_service.set(key="payload_dict", value=payload_dict)
+            # await self.cache_service.set(key="job_data_dict", value={key: payload_dict[key] for key in ApiPayloadKeysForValidation.JOB_DATA_KEYS})
+            # await self.cache_service.set(key="candidate_data_dict", value={key: payload_dict[key] for key in ApiPayloadKeysForValidation.CANDIDATE_DATA_KEYS})
+>>>>>>> Stashed changes
             self.config.TARGET_CANDIDATE_PHONE_NUMBER = payload_dict.get("phone_number")
 
             # await for data to be cached asynchrounously
@@ -231,9 +239,29 @@ class CallAutomationApp:
                 cognitive_services_endpoint=self.config.COGNITIVE_SERVICE_ENDPOINT,
             )
 
+<<<<<<< Updated upstream
             self.logger.info(
                 f"Outbound call initiated with connection ID: {call_connection_properties.call_connection_id}"
             )
+=======
+            # Obtain the call_connection_id
+            call_connection_id = call_connection_properties.call_connection_id
+            
+            self.logger.info(f"Outbound call initiated with connection ID: {call_connection_id}")
+
+            # Store data using call_connection_id as the namespace
+            await self.cache_service.set(f"payload_dict:{call_connection_id}", payload_dict)
+            await self.cache_service.set(
+                f"job_data_dict:{call_connection_id}",
+                {key: payload_dict[key] for key in ApiPayloadKeysForValidation.JOB_DATA_KEYS}
+            )
+            await self.cache_service.set(
+                f"candidate_data_dict:{call_connection_id}",
+                {key: payload_dict[key] for key in ApiPayloadKeysForValidation.CANDIDATE_DATA_KEYS}
+            )
+            await self.cache_service.set(f"participant_id:{call_connection_id}", self.config.TARGET_CANDIDATE_PHONE_NUMBER)
+            
+>>>>>>> Stashed changes
 
             # Simulate an Event Grid event for the outbound call
             event = EventGridEvent(
@@ -264,32 +292,52 @@ class CallAutomationApp:
 
     async def _process_outbound_call(self, event: EventGridEvent):
         """Process outbound call connected event"""
-        self.logger.info("_process_outbound_call event")
-
         try:
+            self.logger.info("_process_outbound_call event")
+
+            # Extract call_connection_id from event data
+            call_connection_id = event.data.get("callConnectionId")
+            if not call_connection_id:
+                self.logger.error("Missing callConnectionId in event data")
+                return  # Or handle appropriately
+
             callee_id = self.config.TARGET_CANDIDATE_PHONE_NUMBER
+<<<<<<< Updated upstream
             session_id = self.cosmosdb_service.create_new_session(
                 callee_id, event.data["callConnectionId"]
             )
+=======
+>>>>>>> Stashed changes
 
-            call_connection_id = event.data["callConnectionId"]
+            # Create a new session in CosmosDB
+            session_id = self.cosmosdb_service.create_new_session(callee_id, call_connection_id)
+            self.logger.info(f"New session created with ID: {session_id} for call_connection_id: {call_connection_id}")
 
+<<<<<<< Updated upstream
             await self.cache_service.set(
                 "participant_id", self.config.TARGET_CANDIDATE_PHONE_NUMBER
             )
+=======
+            # Store data in cache namespaced with call_connection_id
+            await self.cache_service.set(f"participant_id:{call_connection_id}", callee_id)
+            await self.cache_service.set(f"current_session_id:{call_connection_id}", session_id)
+            await self.cache_service.set(f"current_call_id:{call_connection_id}", call_connection_id)
+>>>>>>> Stashed changes
 
-            await self.cache_service.set("current_session_id", session_id)
-            await self.cache_service.set("current_call_id", call_connection_id)
+            # You might also want to set any other necessary data in the cache here
 
-            self.logger.info(f"New session created with ID: {session_id}")
+            # Start the conversation if needed
+            # await self.event_handlers.handle_call_connected(event, callee_id)
 
+<<<<<<< Updated upstream
             # Start the conversation
             # await self.event_handlers.handle_call_connected(event, callee_id)
+=======
+>>>>>>> Stashed changes
         except Exception as e:
-            self.logger.error(
-                f"Error in _process_outbound_call: {str(e)}", exc_info=True
-            )
+            self.logger.error(f"Error in _process_outbound_call: {str(e)}", exc_info=True)
             raise
+
 
     async def handle_callback(self, context_id: str):
         """Handle callbacks from the call automation service"""
@@ -299,11 +347,23 @@ class CallAutomationApp:
             self.logger.info(f"Callback events: {json.dumps(events)}")
 
             # caller_id = self._normalize_caller_id(request.args.get("callerId", ""))
-            callee_id = await self.cache_service.get("participant_id")
+            # callee_id = await self.cache_service.get("participant_id")
             # self.logger.info(f"Processing callback for caller: {caller_id}")
 
             for event_dict in events:
                 event = CloudEvent.from_dict(event_dict)
+                call_connection_id = event.data.get("callConnectionId")
+                if not call_connection_id:
+                    self.logger.error("Missing callConnectionId in event data")
+                    continue  # Skip processing this event if no call_connection_id is found
+                
+                self.logger.info(f"[Call Connection ID: {call_connection_id}] Received callback for context: {context_id}")
+                self.logger.info(f"[Call Connection ID: {call_connection_id}] Event data: {json.dumps(event_dict)}")
+
+                # Retrieve callee_id or any other necessary data using call_connection_id
+                callee_id = await self.cache_service.get(f"participant_id:{call_connection_id}")
+
+           
                 try:
                     await self._process_event(event, callee_id)
                 except Exception as e:
@@ -400,6 +460,6 @@ class CallAutomationApp:
             caller_id = "+" + caller_id
         return caller_id
 
-    def run(self, host: str = "0.0.0.0", port: int = 8080):
+    def run(self, host: str = "0.0.0.0", port: int = 8000):
         """Run the application"""
         self.app.run(host=host, port=port)
