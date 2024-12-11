@@ -8,3 +8,4 @@ api/__pycache__/
 .vscode/
 venv3/
 **.pyc
+api/src/__pycache__/__init__.cpython-310.pyc
