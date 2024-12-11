@@ -133,3 +133,12 @@ resource "azurerm_role_assignment" "speech_contributor" {
   role_definition_id = "/providers/Microsoft.Authorization/roleDefinitions/0e75ca1e-0464-4b4d-8b93-68208a576181"
   principal_id       = module.api.IDENTITY_PRINCIPAL_ID
 }
+
+resource "azurerm_redis_cache_access_policy_assignment" "redis_data_contributor" {
+  depends_on         = [module.api]
+  name               = "app_service_data_contributor"
+  redis_cache_id     = azurerm_redis_cache.redis.id
+  access_policy_name = "Data Contributor"
+  object_id          = module.api.IDENTITY_PRINCIPAL_ID
+  object_id_alias    = "ServicePrincipal"
+}
