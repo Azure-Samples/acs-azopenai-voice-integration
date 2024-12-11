@@ -21,6 +21,20 @@ output "acs_key" {
   sensitive = true
 }
 
+# resource "null_resource" "purchase_phone_number" {
+#   depends_on = [azurerm_communication_service.communication_service]
+
+#   provisioner "local-exec" {
+#     command = <<EOT
+#       az extension add --name communication
+#       az communication phonenumber purchase \
+#         --locale "en-US" \
+#         --phonenumber "+14255550123" \
+#         --capabilities "sms" \
+#         --connection-string "${azurerm_communication_service.communication_service.primary_connection_string}"
+#     EOT
+#   }
+# }
 
 ## Communication Services - Phone Numbers
 # resource "azurerm_communication_service_phone_number" "phone_number" {

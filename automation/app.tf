@@ -59,7 +59,7 @@ module "api" {
     #ACS
     "ACS_CONNECTION_STRING"      = azurerm_communication_service.communication_service.primary_connection_string
     "COGNITIVE_SERVICE_ENDPOINT" = azurerm_cognitive_account.CognitiveServices.endpoint
-    "AGENT_PHONE_NUMBER"         = "AGENT_PHONE_NUMBER"
+    "AGENT_PHONE_NUMBER"         = local.phone_number
     "VOICE_NAME"                 = "en-US-AvaMultilingualNeural"
     # Azure OpenAI
     "AZURE_OPENAI_SERVICE_KEY"         = azurerm_cognitive_account.openai.primary_access_key
@@ -69,8 +69,12 @@ module "api" {
     # Application Settings
     CALLBACK_URI_HOST   = "https://${local.name_prefix}-api.azurewebsites.net"
     CALLBACK_EVENTS_URI = "https://${local.name_prefix}-api.azurewebsites.net/api/callbacks"
-    END_SILENCE_TIMEOUT = "0.5"
+    END_SILENCE_TIMEOUT = "0.4"
 
+    COSMOS_DB_DATABASE_NAME  = azurerm_cosmosdb_sql_database.call_session_db.name
+    COSMOS_DB_CONTAINER_NAME = azurerm_cosmosdb_sql_container.call_session_container.name
+    COSMOS_DB_URL            = azurerm_cosmosdb_account.call_session_account.endpoint
+    COSMOS_DB_KEY            = azurerm_cosmosdb_account.call_session_account.primary_readonly_key
   }
   health_check_path = "/api/health"
   app_command_line  = local.api_command_line
@@ -78,8 +82,8 @@ module "api" {
     type = "SystemAssigned"
   }]
 
-
 }
+
 
 # Workaround: set API_ALLOW_ORIGINS to the web app URI
 resource "null_resource" "api_set_allow_origins" {
