@@ -26,22 +26,3 @@ resource "azurerm_redis_cache" "redis" {
     maxmemory_policy                = "volatile-lru"
   }
 }
-
-# # Access Policies
-# resource "azurerm_redis_cache_access_policy" "data_contributor" {
-#   name           = "Data Contributor"
-#   redis_cache_id = azurerm_redis_cache.redis.id
-#   permissions    = "+@all -@dangerous +cluster|info +cluster|nodes +cluster|slots allkeys"
-# }
-
-# resource "azurerm_redis_cache_access_policy" "data_owner" {
-#   name           = "Data Owner"
-#   redis_cache_id = azurerm_redis_cache.redis.id
-#   permissions    = "+@all allkeys"
-# }
-
-# resource "azurerm_redis_cache_access_policy" "data_reader" {
-#   name           = "Data Reader"
-#   redis_cache_id = azurerm_redis_cache.redis.id
-#   permissions    = "+@read +@connection +cluster|info +cluster|nodes +cluster|slots allkeys"
-# }
