@@ -28,6 +28,10 @@ class Config:
     COSMOS_DB_CONTAINER_NAME= os.getenv("COSMOS_DB_CONTAINER_NAME")
     COSMOS_DB_URL= os.getenv("COSMOS_DB_URL")
     COSMOS_DB_KEY= os.getenv("COSMOS_DB_KEY")
+    
+    # Redis
+    REDIS_URL = os.getenv("REDIS_URL")
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 
 
     TARGET_CANDIDATE_PHONE_NUMBER = os.getenv("TARGET_PHONE_NUMBER")  # E.g., "+1234567890"
