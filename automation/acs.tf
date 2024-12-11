@@ -21,63 +21,25 @@ output "acs_key" {
   sensitive = true
 }
 
-# resource "null_resource" "purchase_phone_number" {
-#   depends_on = [azurerm_communication_service.communication_service]
 
-#   provisioner "local-exec" {
-#     command = <<EOT
-#       az extension add --name communication
-#       az communication phonenumber purchase \
-#         --locale "en-US" \
-#         --phonenumber "+14255550123" \
-#         --capabilities "sms" \
-#         --connection-string "${azurerm_communication_service.communication_service.primary_connection_string}"
-#     EOT
-#   }
-# }
+resource "null_resource" "python_script_purchase_phone_number" {
+  depends_on = [azurerm_communication_service.communication_service]
+  provisioner "local-exec" {
+    command = "python ${path.module}/purchase_phone_number.py --connection-string ${azurerm_communication_service.communication_service.primary_connection_string}"
+  }
 
-## Communication Services - Phone Numbers
-# resource "azurerm_communication_service_phone_number" "phone_number" {
-#   communication_service_id = azurerm_communication_service.communication_service.id
-#   phone_number             = var.phone_number
-#   phone_number_type        = "Calling"
-# }
-# output "phone_number_id" {
-#   value = azurerm_communication_service_phone_number.phone_number.id
-# }
-# output "phone_number" {
-#   value = azurerm_communication_service_phone_number.phone_number.phone_number
-# }
-# output "phone_number_type" {
-#   value = azurerm_communication_service_phone_number.phone_number.phone_number_type
-# }
-# output "phone_number_capabilities" {
-#   value = azurerm_communication_service_phone_number.phone_number.capabilities
-# }
-# output "phone_number_country_code" {
-#   value = azurerm_communication_service_phone_number.phone_number.country_code
-# }
-# output "phone_number_city" {
-#   value = azurerm_communication_service_phone_number.phone_number.city
-# }
-# output "phone_number_state" {
-#   value = azurerm_communication_service_phone_number.phone_number.state
-# }
-# output "phone_number_postal_code" {
-#   value = azurerm_communication_service_phone_number.phone_number.postal_code
-# } output "phone_number_toll_free" {
-# value = azurerm_communication_service_phone_number.phone_number.toll_free
-# }
-# output "phone_number_sms_capable" {
-#   value = azurerm_communication_service_phone_number.phone_number.sms_capable
-# }
-# output "phone_number_voice_capable" {
-#   value = azurerm_communication_service_phone_number.phone_number.voice_capable
-# }
-# output "phone_number_phone_number_type" {
-#   value = azurerm_communication_service_phone_number.phone_number.phone_number_type
-# }
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+}
 
-# Cognitive Service connect with ACS
-# Enable Identity role for ACS
+data "local_file" "phone_number" {
+  depends_on = [null_resource.python_script_purchase_phone_number]
+  filename   = "${path.module}/phone_number_result.json"
+}
 
+locals {
+  phone_result = jsondecode(data.local_file.phone_number.content)
+  # Extract just the phone number string from the parsed JSON
+  phone_number_value = local.phone_result.phone_number
+}

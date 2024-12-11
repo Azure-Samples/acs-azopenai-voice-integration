@@ -4,7 +4,6 @@ locals {
   resource_token = substr(replace(lower(local.sha), "[^A-Za-z0-9_]", ""), 0, 13)
   # api_command_line = "uvicorn main:app --host 0.0.0.0 --port 8000"
   api_command_line = "hypercorn --bind 0.0.0.0 main:app"
-  phone_number     = "+448006404044"
 
   default_tags = {
     Region      = var.location

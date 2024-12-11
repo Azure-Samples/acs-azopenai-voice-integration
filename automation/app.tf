@@ -46,6 +46,12 @@ data "archive_file" "api_zip" {
 # Deploy app service api
 # ------------------------------------------------------------------------------------------------------
 module "api" {
+  depends_on = [azurerm_cognitive_deployment.openai_deployments,
+    azurerm_cosmosdb_sql_container.call_session_container,
+    azurerm_communication_service.communication_service,
+    null_resource.python_script_purchase_phone_number,
+  azurerm_redis_cache.redis]
+
   source             = "./modules/appservicepython"
   location           = var.location
   rg_name            = azurerm_resource_group.rg.name
@@ -54,15 +60,15 @@ module "api" {
   service_name       = "api"
   appservice_plan_id = module.appserviceplan.APPSERVICE_PLAN_ID
   app_settings = {
-    "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "true"
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = module.applicationinsights.APPLICATIONINSIGHTS_CONNECTION_STRING
+    SCM_DO_BUILD_DURING_DEPLOYMENT        = "true"
+    APPLICATIONINSIGHTS_CONNECTION_STRING = module.applicationinsights.APPLICATIONINSIGHTS_CONNECTION_STRING
     #ACS
-    "ACS_CONNECTION_STRING"      = azurerm_communication_service.communication_service.primary_connection_string
-    "COGNITIVE_SERVICE_ENDPOINT" = azurerm_cognitive_account.CognitiveServices.endpoint
-    "AGENT_PHONE_NUMBER"         = local.phone_number
-    "VOICE_NAME"                 = "en-US-AvaMultilingualNeural"
+    ACS_CONNECTION_STRING      = azurerm_communication_service.communication_service.primary_connection_string
+    COGNITIVE_SERVICE_ENDPOINT = azurerm_cognitive_account.CognitiveServices.endpoint
+    AGENT_PHONE_NUMBER         = local.phone_number_value
+    VOICE_NAME                 = "en-US-AvaMultilingualNeural"
     # Azure OpenAI
-    "AZURE_OPENAI_SERVICE_KEY"         = azurerm_cognitive_account.openai.primary_access_key
+    AZURE_OPENAI_SERVICE_KEY           = azurerm_cognitive_account.openai.primary_access_key
     AZURE_OPENAI_SERVICE_ENDPOINT      = azurerm_cognitive_account.openai.endpoint
     AZURE_OPENAI_DEPLOYMENT_MODEL_NAME = azurerm_cognitive_deployment.openai_deployments["gpt-4o"].model[0].name
     AZURE_OPENAI_DEPLOYMENT_MODEL      = azurerm_cognitive_deployment.openai_deployments["gpt-4o"].model[0].name
