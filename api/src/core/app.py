@@ -6,7 +6,7 @@ from azure.eventgrid import EventGridEvent, SystemEventNames
 from azure.core.messaging import CloudEvent
 from azure.communication.callautomation import (
     PhoneNumberIdentifier,
-    CallAutomationClient
+    CallAutomationClient,
 )
 from azure.core.exceptions import AzureError
 import asyncio
@@ -41,7 +41,6 @@ class CallAutomationApp:
         # Initialize CosmosDBService
         self.cosmosdb_service = CosmosDBService(self.config)
 
-
         # Initialize event handlers with all required services
         self.event_handlers = EventHandlers(
             call_handler=self.call_handler,
@@ -66,7 +65,6 @@ class CallAutomationApp:
         self.app.route("/api/initiateOutboundCall", methods=["POST"])(
             self.initiate_outbound_call
         )
-        
 
     async def hello(self):
         """Health check endpoint"""
@@ -79,6 +77,7 @@ class CallAutomationApp:
         return Response(
             response="Healthy", status=200, headers={"Content-Type": "text/plain"}
         )
+
     ## Add incoming_call_handler ##
 
     async def incoming_call_handler(self):
@@ -164,12 +163,12 @@ class CallAutomationApp:
             None
         """
         required_keys = ApiPayloadKeysForValidation.API_KEYS
-        
+
         for key in required_keys:
             if key not in payload_dict:
                 raise ValueError(f"Missing required key: {key}")
-    
-    async def _wait_for_cache(self, key: str, timeout:int=5):
+
+    async def _wait_for_cache(self, key: str, timeout: int = 5):
         """Wait until the cache is set for a given key"""
         for _ in range(timeout):
             value = await self.cache_service.get(key)
@@ -187,35 +186,54 @@ class CallAutomationApp:
             # validate against expected payload
             self._validate_payload(payload_dict=payload_dict)
             self.logger.info(f"Received payload: {json.dumps(payload_dict)}")
-            
+
             # set the data in the cache for keys, job data and candidate data
             await self.cache_service.set(key="payload_dict", value=payload_dict)
-            await self.cache_service.set(key="job_data_dict", value={key: payload_dict[key] for key in ApiPayloadKeysForValidation.JOB_DATA_KEYS})
-            await self.cache_service.set(key="candidate_data_dict", value={key: payload_dict[key] for key in ApiPayloadKeysForValidation.CANDIDATE_DATA_KEYS})
+            await self.cache_service.set(
+                key="job_data_dict",
+                value={
+                    key: payload_dict[key]
+                    for key in ApiPayloadKeysForValidation.JOB_DATA_KEYS
+                },
+            )
+            await self.cache_service.set(
+                key="candidate_data_dict",
+                value={
+                    key: payload_dict[key]
+                    for key in ApiPayloadKeysForValidation.CANDIDATE_DATA_KEYS
+                },
+            )
             self.config.TARGET_CANDIDATE_PHONE_NUMBER = payload_dict.get("phone_number")
-            
+
             # await for data to be cached asynchrounously
-            #await self._wait_for_cache(key="payload_dict")
-            
-            # Get the target participant and source caller            
-            target_participant = PhoneNumberIdentifier(self.config.TARGET_CANDIDATE_PHONE_NUMBER)
+            # await self._wait_for_cache(key="payload_dict")
+
+            # Get the target participant and source caller
+            target_participant = PhoneNumberIdentifier(
+                self.config.TARGET_CANDIDATE_PHONE_NUMBER
+            )
             source_caller = PhoneNumberIdentifier(self.config.AGENT_PHONE_NUMBER)
-            
-            
+
             # Generate a callback URI with a unique context ID
             guid = uuid.uuid4()
-            query_parameters = urlencode({"calleeId": self.config.TARGET_CANDIDATE_PHONE_NUMBER})
-            callback_uri = f"{self.config.CALLBACK_EVENTS_URI}/{guid}?{query_parameters}"
+            query_parameters = urlencode(
+                {"calleeId": self.config.TARGET_CANDIDATE_PHONE_NUMBER}
+            )
+            callback_uri = (
+                f"{self.config.CALLBACK_EVENTS_URI}/{guid}?{query_parameters}"
+            )
 
             call_connection_properties = self.call_automation_client.create_call(
                 target_participant=target_participant,
                 source_caller_id_number=source_caller,
                 # call_invite=call_invite,
                 callback_url=callback_uri,
-                cognitive_services_endpoint=self.config.COGNITIVE_SERVICE_ENDPOINT
+                cognitive_services_endpoint=self.config.COGNITIVE_SERVICE_ENDPOINT,
             )
 
-            self.logger.info(f"Outbound call initiated with connection ID: {call_connection_properties.call_connection_id}")
+            self.logger.info(
+                f"Outbound call initiated with connection ID: {call_connection_properties.call_connection_id}"
+            )
 
             # Simulate an Event Grid event for the outbound call
             event = EventGridEvent(
@@ -226,7 +244,7 @@ class CallAutomationApp:
                     "to": {"rawId": self.config.TARGET_CANDIDATE_PHONE_NUMBER},
                     "outboundCallContext": None,  # Not needed for outbound calls
                 },
-                data_version="1.0"
+                data_version="1.0",
             )
             await self._process_outbound_call(event)
 
@@ -250,11 +268,15 @@ class CallAutomationApp:
 
         try:
             callee_id = self.config.TARGET_CANDIDATE_PHONE_NUMBER
-            session_id = self.cosmosdb_service.create_new_session(callee_id, event.data["callConnectionId"])
+            session_id = self.cosmosdb_service.create_new_session(
+                callee_id, event.data["callConnectionId"]
+            )
 
             call_connection_id = event.data["callConnectionId"]
 
-            await self.cache_service.set("participant_id", self.config.TARGET_CANDIDATE_PHONE_NUMBER) 
+            await self.cache_service.set(
+                "participant_id", self.config.TARGET_CANDIDATE_PHONE_NUMBER
+            )
 
             await self.cache_service.set("current_session_id", session_id)
             await self.cache_service.set("current_call_id", call_connection_id)
@@ -262,7 +284,7 @@ class CallAutomationApp:
             self.logger.info(f"New session created with ID: {session_id}")
 
             # Start the conversation
-            #await self.event_handlers.handle_call_connected(event, callee_id)
+            # await self.event_handlers.handle_call_connected(event, callee_id)
         except Exception as e:
             self.logger.error(
                 f"Error in _process_outbound_call: {str(e)}", exc_info=True
@@ -338,7 +360,7 @@ class CallAutomationApp:
 
         try:
             caller_id = self._extract_caller_id(event.data)
-            #session_id = self.cosmosdb_service.create_new_session(caller_id, event.data["callConnectionId"])
+            # session_id = self.cosmosdb_service.create_new_session(caller_id, event.data["callConnectionId"])
 
             incoming_call_context = event.data["incomingCallContext"]
             callback_uri = self._generate_callback_uri(caller_id)
