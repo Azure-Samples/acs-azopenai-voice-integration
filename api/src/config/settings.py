@@ -34,6 +34,6 @@ class Config:
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 
 
-    TARGET_CANDIDATE_PHONE_NUMBER = os.getenv("TARGET_PHONE_NUMBER")  # E.g., "+1234567890"
-    AGENT_PHONE_NUMBER = os.getenv("AGENT_PHONE_NUMBER")            # E.g., "+10987654321"
+    TARGET_CANDIDATE_PHONE_NUMBER = os.getenv("TARGET_PHONE_NUMBER") 
+    AGENT_PHONE_NUMBER = os.getenv("AGENT_PHONE_NUMBER")           
     

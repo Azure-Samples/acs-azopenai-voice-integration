@@ -121,7 +121,7 @@ class EventHandlers:
             
             
             if participant_id:
-                hello_message =  f"Hello {candidate_data_dict.get('candidate_name')}! {ConversationPrompts.HELLO}. Our client is looking for one {job_data_dict.get('job_role')}."
+                hello_message =  f"Hello {candidate_data_dict.get('candidate_name')}! {ConversationPrompts.HELLO}. Our client is looking for one {job_data_dict.get('job_role')}. Would you have a few minutes to explore this opportunity with me?"
                 await self.call_handler.handle_recognize(
                     hello_message,
                     participant_id,
