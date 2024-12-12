@@ -21,13 +21,14 @@ resource "azurecaf_name" "web_name" {
 }
 
 resource "azurerm_linux_web_app" "web" {
-  name                = var.resource_token
-  location            = var.location
-  resource_group_name = var.rg_name
-  service_plan_id     = var.appservice_plan_id
-  https_only          = true
-  tags                = var.tags
-
+  name                                           = var.resource_token
+  location                                       = var.location
+  resource_group_name                            = var.rg_name
+  service_plan_id                                = var.appservice_plan_id
+  https_only                                     = true
+  tags                                           = var.tags
+  ftp_publish_basic_authentication_enabled       = true
+  webdeploy_publish_basic_authentication_enabled = true
   site_config {
     always_on         = var.always_on
     use_32_bit_worker = var.use_32_bit_worker
@@ -36,7 +37,7 @@ resource "azurerm_linux_web_app" "web" {
     application_stack {
       python_version = var.python_version
     }
-    # health_check_path = var.health_check_path
+
 
 
   }
@@ -62,6 +63,12 @@ resource "azurerm_linux_web_app" "web" {
         retention_in_mb   = 35
       }
     }
+  }
+  lifecycle {
+    ignore_changes = [
+      ftp_publish_basic_authentication_enabled,
+      webdeploy_publish_basic_authentication_enabled
+    ]
   }
 }
 
