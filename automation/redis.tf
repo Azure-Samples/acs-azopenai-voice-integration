@@ -19,6 +19,8 @@ resource "azurerm_redis_cache" "redis" {
   replicas_per_master           = 3
   replicas_per_primary          = 3
 
+  #access_keys_authentication_enabled = false
+
   redis_configuration {
     maxmemory_reserved              = 642
     maxfragmentationmemory_reserved = 642

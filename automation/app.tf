@@ -81,6 +81,9 @@ module "api" {
     COSMOS_DB_CONTAINER_NAME = azurerm_cosmosdb_sql_container.call_session_container.name
     COSMOS_DB_URL            = azurerm_cosmosdb_account.call_session_account.endpoint
     COSMOS_DB_KEY            = azurerm_cosmosdb_account.call_session_account.primary_readonly_key
+
+    REDIS_URL      = azurerm_redis_cache.redis.hostname
+    REDIS_PASSWORD = azurerm_redis_cache.redis.primary_access_key
   }
   health_check_path = "/api/health"
   app_command_line  = local.api_command_line

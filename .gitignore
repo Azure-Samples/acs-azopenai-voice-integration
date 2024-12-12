@@ -9,3 +9,4 @@ api/__pycache__/
 venv3/
 **.pyc
 api/src/__pycache__/**
+automation/.terraform.lock.hcl
