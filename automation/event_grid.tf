@@ -13,7 +13,9 @@ resource "azurerm_eventgrid_system_topic_event_subscription" "webapp_event_subsc
   resource_group_name = azurerm_resource_group.rg.name
 
   webhook_endpoint {
-    url = "https://${local.name_prefix}-api.azurewebsites.net/api/incomingCall"
+    url                               = "https://${local.name_prefix}-api.azurewebsites.net/api/incomingCall"
+    max_events_per_batch              = 1
+    preferred_batch_size_in_kilobytes = 64
   }
   included_event_types = [
     "Microsoft.Communication.IncomingCall"

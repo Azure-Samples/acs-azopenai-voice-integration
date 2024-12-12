@@ -80,9 +80,9 @@ resource "azurerm_cosmosdb_sql_container" "call_session_container" {
     included_path {
       path = "/*"
     }
-    excluded_path {
-      path = "/\"_etag\"/?"
-    }
+    # excluded_path {
+    #   path = "/\"_etag\"/?"
+    # }
   }
 }
 

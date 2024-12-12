@@ -27,10 +27,6 @@ resource "null_resource" "python_script_purchase_phone_number" {
   provisioner "local-exec" {
     command = "python ${path.module}/purchase_phone_number.py --connection-string ${azurerm_communication_service.communication_service.primary_connection_string}"
   }
-
-  triggers = {
-    always_run = "${timestamp()}"
-  }
 }
 
 data "local_file" "phone_number" {
