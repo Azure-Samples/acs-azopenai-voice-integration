@@ -128,9 +128,6 @@ class CallHandler:
                 context=context
             )
         
-
-
-
     async def hangup(self, call_connection_id: str) -> None:
         """
         Hang up the call

@@ -30,8 +30,6 @@ from src.services.cache_service import CacheService
 from src.services.cosmosdb_service import CosmosDBService
 from src.services.openai_realtime_service import OpenAIRealtimeService
 from src.models.models import OutboundCallPayloadModel
-from src.services.openai_realtime_service import OpenAIRealtimeService
-from src.models.models import OutboundCallPayloadModel
 from src.utils.logger import setup_logger
 
 
@@ -374,37 +372,18 @@ class CallAutomationApp:
     async def ws(self, call_id:str):
         """WebSocket handler"""
         print(f"Client connected to WebSocket for call {call_id}")
-        await self.openai_realtime_service.init_websocket(call_id, websocket)
-        await self.openai_realtime_service.start_conversation(call_id)
-        while True:
+        await self.openai_realtime_service.init_incoming_websocket(call_id, websocket)
+        await self.openai_realtime_service.start_client(call_id)
+        while websocket:
             try:
                 data = await websocket.receive()
-                await self.openai_realtime_service.process_websocket_message_async(
+                await self.openai_realtime_service.acs_to_oai(
                     call_id=call_id, 
                     stream_data=data
                 )
             except Exception as e:
                 print(f"WebSocket connection closed for call {call_id}: {e}")
                 break
-
-            
-            
-    async def ws(self, call_id:str):
-        """WebSocket handler"""
-        print(f"Client connected to WebSocket for call {call_id}")
-        await self.openai_realtime_service.init_websocket(call_id, websocket)
-        await self.openai_realtime_service.start_conversation(call_id)
-        while True:
-            try:
-                data = await websocket.receive()
-                await self.openai_realtime_service.process_websocket_message_async(
-                    call_id=call_id, 
-                    stream_data=data
-                )
-            except Exception as e:
-                print(f"WebSocket connection closed for call {call_id}: {e}")
-                break
-
 
     def run(self, host: str = "0.0.0.0", port: int = 8000):
         """Run the application"""

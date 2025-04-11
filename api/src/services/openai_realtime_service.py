@@ -1,25 +1,42 @@
 import asyncio
 import json
-from  rtclient import (
-    RTLowLevelClient,
-    SessionUpdateMessage,
-    ServerVAD, 
-    SessionUpdateParams, 
-    InputAudioBufferAppendMessage, 
-    InputAudioTranscription,
-    )
 from azure.core.credentials import AzureKeyCredential
+
+from openai import AsyncAzureOpenAI
+from openai.types.beta.realtime.session import Session
+from openai.resources.beta.realtime.realtime import AsyncRealtimeConnection, AsyncRealtimeConnectionManager
 
 from src.config.settings import Config
 from src.services.cache_service import CacheService
 from src.config.constants import OpenAIPrompts
+import random
 
+def session_config(sys_msg: str):
+    """Returns a random value from the predefined list."""
+    values = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse']
+    ### for details on available param: https://platform.openai.com/docs/api-reference/realtime-sessions/create
+    SESSION_CONFIG={
+        "input_audio_transcription": {
+            "model": "whisper-1",
+        },
+        "turn_detection": {
+            "threshold": 0.4,
+            "silence_duration_ms": 600,
+            "type": "server_vad"
+        },
+        "instructions": sys_msg,
+        "voice": random.choice(values),
+        "modalities": ["text", "audio"] ## required to solicit the initial welcome message
+    }
+    return SESSION_CONFIG
 
 class OpenAIRealtimeService:
     def __init__(self, config:Config, cache: CacheService):
         self.config = config
         self.cache_service = cache
         self.clients = {}
+        self.connection_managers = {}
+        self.connections={}
         self.active_websockets = {}
     
     active_websocket = None
@@ -53,7 +70,8 @@ class OpenAIRealtimeService:
             return f"{sys_msg} {' '.join(str_list_to_append)}"
         return sys_msg
 
-    async def start_conversation(self, call_id: str):
+#start_conversation > start_client
+    async def start_client(self, call_id: str):
         """
         Method to start a conversation with the Azure OpenAI service via the RTLowLevelClient.
         Official voice options: 'amuch', 'dan', 'elan', 'marilyn', 'meadow', 'breeze', 'cove', 'ember', 'jupiter', 'alloy', 'echo', and 'shimmer'
@@ -61,112 +79,86 @@ class OpenAIRealtimeService:
         - ...
         """
         sys_msg = await self._get_system_message_persona_from_payload(call_id)
-        client = RTLowLevelClient(
-            url=self.config.AZURE_OPENAI_SERVICE_ENDPOINT, 
-            key_credential=AzureKeyCredential(self.config.AZURE_OPENAI_SERVICE_KEY), 
-            azure_deployment=self.config.AZURE_OPENAI_DEPLOYMENT_MODEL_NAME
-        )
-        await client.connect()
-        self.clients[call_id] = client
-        await client.send(
-                SessionUpdateMessage(
-                    session=SessionUpdateParams(
-                        instructions=sys_msg,
-                        turn_detection=ServerVAD(type="server_vad"),
-                        voice= 'marilyn',
-                        input_audio_format='pcm16',
-                        output_audio_format='pcm16',
-                        input_audio_transcription=InputAudioTranscription(model="whisper-1")
-                    )
-                )
+        client = AsyncAzureOpenAI(
+                azure_endpoint=self.config.AZURE_OPENAI_SERVICE_ENDPOINT,
+                azure_deployment=self.config.AZURE_OPENAI_DEPLOYMENT_MODEL_NAME,
+                api_key=AzureKeyCredential(self.config.AZURE_OPENAI_SERVICE_KEY), 
+                api_version="2024-10-01-preview",
             )
+        connection_manager = self.client.beta.realtime.connect(
+                    model=self.config.AZURE_OPENAI_DEPLOYMENT_MODEL_NAME,
+        )
+        active_connection = await connection_manager.enter()
+
+        self.clients[call_id] = client
+        self.connection_managers[call_id] = connection_manager
+        self.connections[call_id] = active_connection
+        await active_connection.session.update(session=session_config(sys_msg))
+        await active_connection.response.create()
         
         # maybe start by sending welcome message
-        asyncio.create_task(self.receive_messages(call_id=call_id, client=client))
-        
+        asyncio.create_task(self.receive_oai_messages(call_id=call_id))
 
-    async def send_audio_to_external_ai(self, call_id:str, audioData: str):
-        client = self.clients.get(call_id)
-        await client.send(
-            message=InputAudioBufferAppendMessage(
-                type="input_audio_buffer.append", 
-                audio=audioData, 
-                _is_azure=True
-            )
-        )
+#send_audio_to_external_ai > audio_to_oai             
+    async def audio_to_oai(self, call_id:str, audioData: str):
+        connection = self.connections.get(call_id)
+        await connection.input_audio_buffer.append(audio=audioData)
 
-
-    async def receive_messages(self, call_id: str, client: RTLowLevelClient):
-        client = self.clients.get(call_id)
-        while not client.closed:
-            message = await client.recv()
-            if message is None:
-                continue
-            match message.type:
-                case "session.created":
-                    print("Session Created Message")
-                    print(f"  Session Id: {message.session.id}")
-                    #TODO: for this to work it needs to be enconded in base64 audio
-                    #greeting = "Hello {name}, this is Kira, an AI recruiter at Contoso. I have a job opportunity that matches your profile. Do you have a few minutes to discuss it?"
-                    #await send_audio_to_external_ai(greeting)
-                    pass
-                #case "session.updated":
-                #    message
-                #    text_message = {
-                #    'event_id':message['event_id'],
-                #    "type": "conversation.item.create",
-                #    "item": {
-                #        "type": "message",
-                #        "role": "user",
-                #        "content": [{"type": "input_text", "text":"Say hello to me using my name, introduce yourself and ask me if I have a few mins to talk about a job opportunity"}]
-                #    }
-                #}
-                #    await client.send(json.dumps(text_message))
-                case "error":
-                    print(f"  Error: {message.error}")
-                    pass
-                case "input_audio_buffer.cleared":
-                    print("Input Audio Buffer Cleared Message")
-                    pass
-                case "input_audio_buffer.speech_started":
-                    print(f"Voice activity detection started at {message.audio_start_ms} [ms]")
-                    await self.stop_audio(call_id)
-                    pass
-                case "input_audio_buffer.speech_stopped":
-                    pass
-                case "conversation.item.input_audio_transcription.completed":
-                    print(f" User:-- {message.transcript}")
-                case "conversation.item.input_audio_transcription.failed":
-                    print(f"  Error: {message.error}")
-                case "response.done":
-                    print("Response Done Message")
-                    print(f"  Response Id: {message.response.id}")
-                    if message.response.status_details:
-                        print(f"  Status Details: {message.response.status_details.model_dump_json()}")
-                case "response.audio_transcript.done":
-                    print(f" AI:-- {message.transcript}")
-                    # consider if it should hang up the call
-                    if any(keyword in message.transcript.lower() for keyword in ["bye", "goodbye", "take care"]):
-                        # await _handle_hangup(acs_call_connection_id)
-                        # TODO: implement hangup
-                        #await self.cleanup_call_resources(call_id)
-                        print("### Should hangup the call ###")
-                case "response.audio.delta":
-                    await self.receive_audio_for_outbound(call_id, message.delta)
-                    pass
-                case _:
-                    pass
-
+#receive_messages > receive_oai_messages
+    async def receive_oai_messages(self, call_id: str):
+                connection = self.connections.get(call_id)
+                async for event in connection:
+                    if event is None:
+                        continue
+                    match event.type:
+                        case "session.created":
+                            print("Session Created Message")
+                            print(f"  Session Id: {event.session.id}")
+                            pass
+                        case "error":
+                            print(f"  Error: {event.error}")
+                            pass
+                        case "input_audio_buffer.cleared":
+                            print("Input Audio Buffer Cleared Message")
+                            pass
+                        case "input_audio_buffer.speech_started":
+                            print(f"Voice activity detection started at {event.audio_start_ms} [ms]")
+                            await self.stop_audio(call_id)
+                            pass
+                        case "input_audio_buffer.speech_stopped":
+                            pass
+                        case "conversation.item.input_audio_transcription.completed":
+                            print(f" User:-- {event.transcript}")
+                        case "conversation.item.input_audio_transcription.failed":
+                            print(f"  Error: {event.error}")
+                        case "response.done":
+                            print("Response Done Message")
+                            print(f"  Response Id: {event.response.id}")
+                            if event.response.status_details:
+                                print(f"  Status Details: {event.response.status_details.model_dump_json()}")
+                        case "response.audio_transcript.done":
+                            print(f" AI:-- {event.transcript}")
+                            if any(keyword in event.transcript.lower() for keyword in ["bye", "goodbye", "take care"]):
+                                # await _handle_hangup(acs_call_connection_id)
+                                # TODO: implement hangup
+                                #await self.cleanup_call_resources(call_id)
+                                print("### Should hangup the call ###")
+                        case "response.audio.delta":
+                            await self.oai_to_acs(call_id, event.delta)
+                            pass
+                        case _:
+                            pass
 
     async def _handle_hangup(self, call_connection_id:str):
         pass        
 
-    async def init_websocket(self, call_id:str, socket):
+#init_websocket -> init_incoming_websocket (incoming)
+    async def init_incoming_websocket(self, call_id:str, socket):
         #global active_websocket
         self.active_websockets[call_id] = socket
 
-
-    async def receive_audio_for_outbound(self, call_id:str, data):
+#receive_audio_for_outbound > oai_to_acs
+    async def oai_to_acs(self, call_id:str, data):
         try:
             data = {
                 "Kind": "AudioData",
@@ -183,7 +175,7 @@ class OpenAIRealtimeService:
         except Exception as e:
             print(e)
 
-
+# stop oai talking when detecting the user talking
     async def stop_audio(self, call_id: str):
             stop_audio_data = {
                 "Kind": "StopAudio",
@@ -194,7 +186,7 @@ class OpenAIRealtimeService:
             json_data = json.dumps(stop_audio_data)
             await self.send_message(call_id, json_data)
 
-
+# send_message > send_message
     async def send_message(self, call_id:str, message: str):
         active_websocket = self.active_websockets.get(call_id)
         try:
@@ -202,18 +194,17 @@ class OpenAIRealtimeService:
         except Exception as e:
             print(f"Failed to send message: {e}")
             
-    # orignally in media_streming_handler.py
-    async def process_websocket_message_async(self, call_id, stream_data):
+#mediaStreamingHandler.process_websocket_message_async -> acs_to_oai
+    async def acs_to_oai(self, call_id, stream_data):
         try:
             data = json.loads(stream_data)
             kind = data['kind']
             if kind == "AudioData":
                 audio_data = data["audioData"]["data"]
-                await self.send_audio_to_external_ai(call_id, audio_data)
+                await self.audio_to_oai(call_id, audio_data)
         except Exception as e:
             print(f'Error processing WebSocket message: {e}')
-    
-        
+       
     async def cleanup_call_resources(self, call_id:str, is_acs_id:bool=True):
         """Method to cleanup resources for a call
         :param call_id: The call_id or acs_id to cleanup resources for
@@ -221,14 +212,14 @@ class OpenAIRealtimeService:
         """
         if is_acs_id:
             call_id = await self.cache_service.get(f'websocket_id:{call_id}')
-            
+        
+        connection = self.connections.pop(call_id, None)
+        connection_manager = self.connection_managers.pop(call_id, None)    
         client = self.clients.pop(call_id, None)
         websocket = self.active_websockets.pop(call_id, None)
         if websocket:
             print(f"Closing websocket for call_id {call_id} ...")
             await websocket.close()
-        if client:
+        if connection:
             print(f"Closing client for call_id {call_id} ...")
-            await client.close()
-
-
+            await connection.close()
