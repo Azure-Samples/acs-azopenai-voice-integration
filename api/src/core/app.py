@@ -30,6 +30,7 @@ from src.services.cache_service import CacheService
 from src.services.cosmosdb_service import CosmosDBService
 from src.services.openai_realtime_service import OpenAIRealtimeService
 from src.services.ai_voice_service import AsyncAzureVoiceLiveService
+from src.services.ai_voice_agent_service import AsyncAzureVoiceLiveAgentService
 from src.models.models import OutboundCallPayloadModel
 from src.utils.logger import setup_logger
 from src.interfaces.ai_voice_base import AIVoiceBase
@@ -53,8 +54,14 @@ class CallAutomationApp:
             self.config.ACS_CONNECTION_STRING
         )
         
-    
+        # Initialize both AI voice services (non-agent and agent)
         self.ai_voice_service: AIVoiceBase = AsyncAzureVoiceLiveService(
+            config=self.config,
+            logger=self.logger,
+            cache=self.cache_service,
+        )
+        
+        self.ai_voice_agent_service: AIVoiceBase = AsyncAzureVoiceLiveAgentService(
             config=self.config,
             logger=self.logger,
             cache=self.cache_service,
@@ -151,6 +158,21 @@ class CallAutomationApp:
                     elif event.event_type == EventTypes.INCOMING_CALL:
                         self.logger.info("Handling incoming call event")
                         await self._process_incoming_call(event)
+                        return Response(status=StatusCodes.OK)
+                    
+                    elif event.event_type in [
+                        EventTypes.CALL_STARTED,
+                        EventTypes.CALL_ENDED,
+                        EventTypes.CALL_PARTICIPANT_ADDED,
+                        EventTypes.CALL_PARTICIPANT_REMOVED,
+                        EventTypes.CALL_CONNECTED,
+                        EventTypes.CALL_DISCONNECTED
+                    ]:
+                        self.logger.info(f"Acknowledging event: {event.event_type}")
+                        return Response(status=StatusCodes.OK)
+                    
+                    else:
+                        self.logger.warning(f"Unhandled event type: {event.event_type}")
                         return Response(status=StatusCodes.OK)
 
                 except Exception as e:
@@ -300,6 +322,13 @@ class CallAutomationApp:
             await self.cache_service.set(f"websocket_id:{call_connection_id}", str(guid))
             await self.cache_service.set(f"acs_call_id:{str(guid)}", call_connection_id) # not great... what if they clash when scaling?
             await self.cache_service.set(f"payload_dict:{call_connection_id}", payload_dict)
+            
+            # Store use_agent flag for this call (convert to boolean)
+            use_agent = payload_dict.get("use_agent", False)
+            if isinstance(use_agent, str):
+                use_agent = use_agent.lower() == "true"
+            await self.cache_service.set(f"use_agent:{str(guid)}", use_agent)
+            self.logger.info(f"Call {call_connection_id} using {'agent' if use_agent else 'non-agent'} mode")
 
             return Response(status=StatusCodes.OK)
 
@@ -355,7 +384,15 @@ class CallAutomationApp:
                 
                 elif event['type'] == "Microsoft.Communication.CallDisconnected":
                     #acs_client.get_call_connection(call_connection_id).hangup()
-                    await self.ai_voice_service.cleanup_call_resources(call_id=call_connection_id)
+                    # Clean up resources from the appropriate service
+                    websocket_id = await self.cache_service.get(f'websocket_id:{call_connection_id}')
+                    use_agent = await self.cache_service.get(f"use_agent:{websocket_id}")
+                    
+                    if use_agent:
+                        await self.ai_voice_agent_service.cleanup_call_resources(call_id=call_connection_id)
+                    else:
+                        await self.ai_voice_service.cleanup_call_resources(call_id=call_connection_id)
+                    
                     self.logger.info(f"Received CallDisconnected event for connection id: {call_connection_id}")
                     
                 return Response(status=200)
@@ -369,14 +406,51 @@ class CallAutomationApp:
             
             
     async def ws(self, call_id:str):
-        """WebSocket handler"""
+        """WebSocket handler - supports both agent and non-agent modes with automatic fallback"""
         print(f"Client connected to WebSocket for call {call_id}")
-        await self.ai_voice_service.init_incoming_websocket(call_id, websocket)
-        await self.ai_voice_service.start_client(call_id)
+        
+        # Determine which service to use based on use_agent flag
+        use_agent = await self.cache_service.get(f"use_agent:{call_id}")
+        
+        # Select the appropriate AI voice service with fallback
+        if use_agent:
+            try:
+                service = self.ai_voice_agent_service
+                self.logger.info(f"Attempting to use Agent Service for call {call_id}")
+                
+                # Initialize the service - if this fails, fall back
+                await service.init_incoming_websocket(call_id, websocket)
+                await service.start_client(call_id)
+                self.logger.info(f"Successfully started Agent Service for call {call_id}")
+                
+            except Exception as e:
+                self.logger.warning(f"Agent Service failed for call {call_id}: {e}")
+                self.logger.info(f"Falling back to Non-Agent Service for call {call_id}")
+                
+                # Clean up failed agent resources to prevent lingering errors
+                try:
+                    await self.ai_voice_agent_service.cleanup_call_resources(call_id, is_acs_id=False)
+                except Exception as cleanup_error:
+                    self.logger.debug(f"Agent cleanup error (expected): {cleanup_error}")
+                
+                # Fallback to non-agent mode
+                service = self.ai_voice_service
+                await service.init_incoming_websocket(call_id, websocket)
+                await service.start_client(call_id)
+                
+                # Update cache to reflect actual service used
+                await self.cache_service.set(f"use_agent:{call_id}", False)
+        else:
+            service = self.ai_voice_service
+            self.logger.info(f"Using Non-Agent Service for call {call_id}")
+            await service.init_incoming_websocket(call_id, websocket)
+            await service.start_client(call_id)
+        
+        # Handle WebSocket messages
         while websocket:
             try:
                 data = await websocket.receive()
-                await self.ai_voice_service.acs_to_oai(
+                await service.acs_to_oai(
                     call_id=call_id, 
                     stream_data=data
                 )

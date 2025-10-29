@@ -88,44 +88,39 @@ class OpenAIRealtimeService(AIVoiceBase):
                 async for event in connection:
                     if event is None:
                         continue
-                    match event.type:
-                        case "session.created":
-                            print("Session Created Message")
-                            print(f"  Session Id: {event.session.id}")
-                            pass
-                        case "error":
-                            print(f"  Error: {event.error}")
-                            pass
-                        case "input_audio_buffer.cleared":
-                            print("Input Audio Buffer Cleared Message")
-                            pass
-                        case "input_audio_buffer.speech_started":
-                            print(f"Voice activity detection started at {event.audio_start_ms} [ms]")
-                            await self.stop_audio(call_id)
-                            pass
-                        case "input_audio_buffer.speech_stopped":
-                            pass
-                        case "conversation.item.input_audio_transcription.completed":
-                            print(f" User:-- {event.transcript}")
-                        case "conversation.item.input_audio_transcription.failed":
-                            print(f"  Error: {event.error}")
-                        case "response.done":
-                            print("Response Done Message")
-                            print(f"  Response Id: {event.response.id}")
-                            if event.response.status_details:
-                                print(f"  Status Details: {event.response.status_details.model_dump_json()}")
-                        case "response.audio_transcript.done":
-                            print(f" AI:-- {event.transcript}")
-                            if any(keyword in event.transcript.lower() for keyword in ["bye", "goodbye", "take care", "have a great day", "have a good day"]):
-                                # await _handle_hangup(acs_call_connection_id)
-                                # TODO: implement hangup
-                                #await self.cleanup_call_resources(call_id)
-                                print("### Should hangup the call ###")
-                        case "response.audio.delta":
-                            await self.oai_to_acs(call_id, event.delta)
-                            pass
-                        case _:
-                            pass
+                    
+                    if event.type == "session.created":
+                        print("Session Created Message")
+                        print(f"  Session Id: {event.session.id}")
+                    elif event.type == "error":
+                        print(f"  Error: {event.error}")
+                    elif event.type == "input_audio_buffer.cleared":
+                        print("Input Audio Buffer Cleared Message")
+                    elif event.type == "input_audio_buffer.speech_started":
+                        print(f"Voice activity detection started at {event.audio_start_ms} [ms]")
+                        await self.stop_audio(call_id)
+                    elif event.type == "input_audio_buffer.speech_stopped":
+                        pass
+                    elif event.type == "conversation.item.input_audio_transcription.completed":
+                        print(f" User:-- {event.transcript}")
+                    elif event.type == "conversation.item.input_audio_transcription.failed":
+                        print(f"  Error: {event.error}")
+                    elif event.type == "response.done":
+                        print("Response Done Message")
+                        print(f"  Response Id: {event.response.id}")
+                        if event.response.status_details:
+                            print(f"  Status Details: {event.response.status_details.model_dump_json()}")
+                    elif event.type == "response.audio_transcript.done":
+                        print(f" AI:-- {event.transcript}")
+                        if any(keyword in event.transcript.lower() for keyword in ["bye", "goodbye", "take care", "have a great day", "have a good day"]):
+                            # await _handle_hangup(acs_call_connection_id)
+                            # TODO: implement hangup
+                            #await self.cleanup_call_resources(call_id)
+                            print("### Should hangup the call ###")
+                    elif event.type == "response.audio.delta":
+                        await self.oai_to_acs(call_id, event.delta)
+                    else:
+                        pass
 
     async def _handle_hangup(self, call_connection_id:str):
         pass        
@@ -181,7 +176,9 @@ class OpenAIRealtimeService(AIVoiceBase):
                 audio_data = data["audioData"]["data"]
                 await self.audio_to_oai(call_id, audio_data)
         except Exception as e:
-            print(f'Error processing WebSocket message: {e}')
+            # Only log unexpected errors, not connection closed errors
+            if "WebSocket not connected" not in str(e):
+                print(f'Error processing WebSocket message: {e}')
        
     async def cleanup_call_resources(self, call_id:str, is_acs_id:bool=True):
         """Method to cleanup resources for a call

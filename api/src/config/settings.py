@@ -22,7 +22,7 @@ class Config:
     # Application Settings
     CALLBACK_URI_HOST = os.getenv("CALLBACK_URI_HOST")
     CALLBACK_EVENTS_URI = f"{CALLBACK_URI_HOST}/api/callbacks"
-    END_SILENCE_TIMEOUT = float(os.getenv("END_SILENCE_TIMEOUT", "0.5"))
+    END_SILENCE_TIMEOUT = float(os.getenv("END_SILENCE_TIMEOUT") or "0.5")
 
     # CosmosDB
     COSMOS_DB_DATABASE_NAME= os.getenv("COSMOS_DB_DATABASE_NAME")
@@ -52,6 +52,11 @@ class Config:
     VOICE_LIVE_MODEL = os.getenv("VOICE_LIVE_MODEL", "gpt-4o")
     AZURE_VOICE_LIVE_API_VERSION = os.getenv("AZURE_VOICE_LIVE_API_VERSION", "2025-05-01-preview")
     AZURE_VOICE_LIVE_API_KEY = os.getenv("AZURE_VOICE_LIVE_API_KEY")
+    
+    # AI Foundry Agent Service (for agent-based voice live)
+    AI_FOUNDRY_PROJECT_NAME = os.getenv("AI_FOUNDRY_PROJECT_NAME")
+    AI_FOUNDRY_AGENT_ID = os.getenv("AI_FOUNDRY_AGENT_ID")
+    AI_FOUNDRY_AGENT_ACCESS_TOKEN = os.getenv("AI_FOUNDRY_AGENT_ACCESS_TOKEN")
     
     # security (partially implemented)
     SHOULD_USE_KEYS:bool = os.getenv("SHOULD_USE_KEYS", False)

@@ -1,30 +1,100 @@
-### call via local for GPT-4o Realtime voice model - travel agent
+### call via local for GPT-4o Realtime voice model - travel agent (NON-AGENT MODE)
 # Payload validation needed to avoid jailbreak attacks
+# use_agent: false uses the direct Voice Live API connection
 POST http://localhost:8000/api/initiateOutboundCall
 Content-Type: application/json
 
 {
-    "phone_number": "<>",
+    "phone_number": "+447427404900",
     "customer_name": "John Smith",
     "customer_email": "john_smith@hotmail.com",
     "destination_of_interest": "Barcelona, Spain",
     "city_of_origin": "New York City, USA",
     "travel_dates": "late May 2025",
-    "duration_of_stay": "unknown"
+    "duration_of_stay": "unknown",
+    "use_agent": false
 }
 
+###
 
+### call via local for GPT-4o Realtime voice model - travel agent (AGENT MODE)
+# use_agent: true uses Azure AI Foundry Agent Service
+# Requires AI_FOUNDRY_PROJECT_NAME, AI_FOUNDRY_AGENT_ID, and AI_FOUNDRY_AGENT_ACCESS_TOKEN in .env
+POST http://localhost:8000/api/initiateOutboundCall
+Content-Type: application/json
 
-### call via web app
+{
+    "phone_number": "+447427404900",
+    "customer_name": "John Smith",
+    "customer_email": "john_smith@hotmail.com",
+    "destination_of_interest": "Barcelona, Spain",
+    "city_of_origin": "New York City, USA",
+    "travel_dates": "late May 2025",
+    "duration_of_stay": "unknown",
+    "use_agent": true
+}
+
+###
+
+### call via web app (NON-AGENT MODE)
 POST tf-ai-aivoice-dev-api-rkvm.azurewebsites.net/api/initiateOutboundCall
 Content-Type: application/json
 
 {
-    "phone_number": "<>",
+    "phone_number": "+447427404900",
     "customer_name": "John Smith",
     "customer_email": "john_smith@hotmail.com",
     "destination_of_interest": "Barcelona, Spain",
     "city_of_origin": "New York City, USA",
     "travel_dates": "late May 2025",
-    "duration_of_stay": "unknown"
+    "duration_of_stay": "unknown",
+    "use_agent": false
+}
+
+###
+
+### call via web app (AGENT MODE)
+POST tf-ai-aivoice-dev-api-rkvm.azurewebsites.net/api/initiateOutboundCall
+Content-Type: application/json
+
+{
+    "phone_number": "+447427404900",
+    "customer_name": "John Smith",
+    "customer_email": "john_smith@hotmail.com",
+    "destination_of_interest": "Barcelona, Spain",
+    "city_of_origin": "New York City, USA",
+    "travel_dates": "late May 2025",
+    "duration_of_stay": "unknown",
+    "use_agent": true
+}
+
+###
+
+### RECRUITMENT INTERVIEW - conduct phone screening for Full Stack Developer role
+# persona: "recruitment" activates the recruitment interview system message
+# The AI will interview based on Sarah Mitchell's CV and the CloudScale Innovations job description
+POST http://localhost:8000/api/initiateOutboundCall
+Content-Type: application/json
+
+{
+    "phone_number": "+447427404900",
+    "customer_name": "Sarah Mitchell",
+    "customer_email": "sarah.mitchell@email.com",
+    "persona": "recruitment",
+    "use_agent": false
+}
+
+###
+
+### RECRUITMENT INTERVIEW with AGENT MODE
+# Uses Azure AI Foundry Agent with recruitment persona
+POST http://localhost:8000/api/initiateOutboundCall
+Content-Type: application/json
+
+{
+    "phone_number": "+447427404900",
+    "customer_name": "Sarah Mitchell",
+    "customer_email": "sarah.mitchell@email.com",
+    "persona": "recruitment",
+    "use_agent": true
 }

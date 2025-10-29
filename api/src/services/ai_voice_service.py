@@ -44,16 +44,10 @@ def session_config(sys_msg: str):
             "type": "session.update",
             "session": {
                 "turn_detection": {
-                    "type": "server_vad",
-                    "threshold": 0.5,
-                    "prefix_padding_ms": 200,
-                    "silence_duration_ms": 200,
-                    "remove_filler_words": False,
-                    "end_of_utterance_detection": {
-                        "model": "semantic_detection_v1",
-                        "threshold": 0.01,
-                        "timeout": 4,
-                    },
+                    "type": "azure_semantic_vad",
+                    "threshold": 0.2,
+                    "prefix_padding_ms": 700,
+                    "silence_duration_ms": 500,
                 },
                 "input_audio_noise_reduction": {
                     "type": "azure_deep_noise_suppression"
@@ -62,7 +56,7 @@ def session_config(sys_msg: str):
                     "type": "server_echo_cancellation"
                 },
                 "voice": {
-                    "name": "en-US-Emma2:DragonHDLatestNeural",
+                    "name": "en-gb-ollie:DragonHDOmniLatestNeural",
                     "type": "azure-standard",
                     "temperature": 0.8,
                 },
@@ -83,6 +77,7 @@ class AsyncAzureVoiceLiveService(AIVoiceBase):
         self.connection_managers = {}
         self.connections={}
         self.active_websockets = {}
+        self.session_ids = {}  # Store session IDs for each call
     
     active_websocket = None
     
@@ -139,54 +134,60 @@ class AsyncAzureVoiceLiveService(AIVoiceBase):
                     self.logger.warning("Received empty event, skipping...")
                     continue
                 event = json.loads(raw_event)
-                #print(f"Received event:", {event.get("type")})
+                #print(f"Received event:", {event.get('type')})
                 
-                match event.get("type"):
-                    
-                    case "conversation.item.truncated":
-                        self.logger.info("Conversation item truncated")
-                        pass
-
-                    case "session.created":
-                        session = event.get("session")
-                        self.logger.info(f"Session created: {session.get("id")}")
-
-                    case "response.audio.delta":
-                        if event.get("item_id") != last_audio_item_id:
-                            last_audio_item_id = event.get("item_id")
-                        #print(f"#########   {event}")
-                        await self.oai_to_acs(call_id, event.get("delta", ""))
-                        pass
-
-                    #bytes_data = base64.b64decode(event.get("delta", ""))
-                    #audio_player.add_data(bytes_data)
-                    case "response.audio_transcript.delta":
-                        pass
-                        
-                    case "input_audio_buffer.speech_started":
-                        self.logger.info("Speech started in input audio buffer")
-                        await self.stop_audio(call_id)
-                    
-                    case "conversation.item.input_audio_transcription.completed":
-                        print(f" >>> User: {event.get("transcript", "????")}")
-                    
-                    case "esponse.audio_transcript.done":
-                        print(f" >>> AI: {event.get('transcript', '????')}")
-                        if any(keyword in event.transcript.lower() for keyword in ["bye", "goodbye", "take care", "have a great day", "have a good day"]):
-                            # await _handle_hangup(acs_call_connection_id)
-                            # TODO: implement hangup
-                            #await self.cleanup_call_resources(call_id)
-                            print("### Should hangup the call ###")
+                event_type = event.get("type")
                 
-                    case "error":
-                        error_details = event.get("error", {})
-                        error_type = error_details.get("type", "Unknown")
-                        error_code = error_details.get("code", "Unknown")
-                        error_message = error_details.get("message", "No message provided")
-                        raise ValueError(f"Error received: Type={error_type}, Code={error_code}, Message={error_message}")
+                if event_type == "conversation.item.truncated":
+                    self.logger.info("Conversation item truncated")
+                    pass
+
+                elif event_type == "session.created":
+                    session = event.get("session")
+                    session_id = session.get('id')
+                    self.logger.info(f"Session created: {session_id}")
+                    print(f"\n🎯 SESSION ID: {session_id} | Call ID: {call_id}\n")
                     
-                    case _:
-                        pass
+                    # Store session ID in memory and cache
+                    self.session_ids[call_id] = session_id
+                    await self.cache_service.set(f"voice_live_session_id:{call_id}", session_id)
+
+                elif event_type == "response.audio.delta":
+                    if event.get("item_id") != last_audio_item_id:
+                        last_audio_item_id = event.get("item_id")
+                    #print(f"#########   {event}")
+                    await self.oai_to_acs(call_id, event.get("delta", ""))
+                    pass
+
+                #bytes_data = base64.b64decode(event.get("delta", ""))
+                #audio_player.add_data(bytes_data)
+                elif event_type == "response.audio_transcript.delta":
+                    pass
+                    
+                elif event_type == "input_audio_buffer.speech_started":
+                    self.logger.info("Speech started in input audio buffer")
+                    await self.stop_audio(call_id)
+                
+                elif event_type == "conversation.item.input_audio_transcription.completed":
+                    print(f" >>> User: {event.get('transcript', '????')}")
+                
+                elif event_type == "esponse.audio_transcript.done":
+                    print(f" >>> AI: {event.get('transcript', '????')}")
+                    if any(keyword in event.transcript.lower() for keyword in ["bye", "goodbye", "take care", "have a great day", "have a good day"]):
+                        # await _handle_hangup(acs_call_connection_id)
+                        # TODO: implement hangup
+                        #await self.cleanup_call_resources(call_id)
+                        print("### Should hangup the call ###")
+            
+                elif event_type == "error":
+                    error_details = event.get("error", {})
+                    error_type = error_details.get("type", "Unknown")
+                    error_code = error_details.get("code", "Unknown")
+                    error_message = error_details.get("message", "No message provided")
+                    raise ValueError(f"Error received: Type={error_type}, Code={error_code}, Message={error_message}")
+                
+                else:
+                    pass
 
         except Exception as e:
             self.logger.error(f"Error in audio playback: {e}")
@@ -243,7 +244,9 @@ class AsyncAzureVoiceLiveService(AIVoiceBase):
                 data_json = json.dumps(param)
                 await self.audio_to_aoi(call_id, data_json)
         except Exception as e:
-            print(f'Error processing WebSocket message: {e}')
+            # Only log unexpected errors, not connection closed errors
+            if "WebSocket not connected" not in str(e):
+                print(f'Error processing WebSocket message: {e}')
 
 
     async def cleanup_call_resources(self, call_id:str, is_acs_id:bool=True):
@@ -258,6 +261,8 @@ class AsyncAzureVoiceLiveService(AIVoiceBase):
         connection_manager = self.connection_managers.pop(call_id, None)    
         client = self.clients.pop(call_id, None)
         websocket = self.active_websockets.pop(call_id, None)
+        session_id = self.session_ids.pop(call_id, None)
+        
         if websocket:
             print(f"Closing websocket for call_id {call_id} ...")
             await connection_manager.close()
@@ -265,6 +270,23 @@ class AsyncAzureVoiceLiveService(AIVoiceBase):
         if connection:
             print(f"Closing client for call_id {call_id} ...")
             await connection.close()
+        
+        # Clean up session ID from cache
+        if session_id:
+            try:
+                await self.cache_service.delete(f"voice_live_session_id:{call_id}")
+            except:
+                pass
+    
+    async def get_session_id(self, call_id: str) -> Optional[str]:
+        """Get the Voice Live session ID for a call"""
+        # Try to get from memory first
+        session_id = self.session_ids.get(call_id)
+        if session_id:
+            return session_id
+        
+        # Fall back to cache
+        return await self.cache_service.get(f"voice_live_session_id:{call_id}")
         
         
     async def init_incoming_websocket(self, call_id:str, socket:Websocket):
@@ -439,11 +461,11 @@ class AsyncAzureVoiceLive:
 #        while True:
 #            async for raw_event in connection:
 #                event = json.loads(raw_event)
-#                print(f"Received event:", {event.get("type")})
+#                print(f"Received event:", {event.get('type')})
 #
 #                if event.get("type") == "session.created":
 #                    session = event.get("session")
-#                    logger.info(f"Session created: {session.get("id")}")
+#                    logger.info(f"Session created: {session.get('id')}")
 #
 #                elif event.get("type") == "response.audio.delta":
 #                    if event.get("item_id") != last_audio_item_id:

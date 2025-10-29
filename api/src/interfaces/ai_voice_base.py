@@ -53,14 +53,28 @@ class AIVoiceBase(ABC):
         self, 
         call_id:str,
         promtps:OpenAIPrompts = OpenAIPrompts, 
-        persona:str='joyce'
+        persona:str='default'
     ):
-        """Method to add logic to configure agent persona leveraging the system prompt and candidate and job cached data"""
+        """Method to add logic to configure agent persona leveraging the system prompt and candidate and job cached data
+        
+        Checks the payload for a 'persona' field to determine which system message to use.
+        Falls back to the persona parameter if not found in payload.
+        Available personas: 'default' (travel agent), 'recruitment' (job interview)
+        """
         ## Add your logic ##
         acs_call_id = await self.cache_service.get(f'acs_call_id:{call_id}')
         req_payload = await self.cache_service.get(f'payload_dict:{acs_call_id}')
+        
+        # Check if persona is specified in the payload, otherwise use the parameter
+        if req_payload and 'persona' in req_payload:
+            requested_persona = req_payload.get('persona', persona)
+            print(f"Using persona from payload: {requested_persona}")
+        else:
+            requested_persona = persona
+            print(f"Using default persona: {requested_persona}")
+        
         sys_msg = self._construct_system_message(
-            promtps.system_message_dict.get(persona), 
+            promtps.system_message_dict.get(requested_persona, promtps.SYSTEM_MESSAGE_DEFAULT), 
             [
                 "\n## ADDITIONAL INFORMATION\n" + json.dumps(req_payload)
             ]
