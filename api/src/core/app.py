@@ -63,8 +63,8 @@ class CallAutomationApp:
         
         self.ai_voice_agent_service: AIVoiceBase = AsyncAzureVoiceLiveAgentService(
             config=self.config,
-            logger=self.logger,
             cache=self.cache_service,
+            logger=self.logger,
         )
         
         #self.openai_realtime_service = OpenAIRealtimeService(

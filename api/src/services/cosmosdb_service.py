@@ -29,7 +29,6 @@ class CosmosDBService:
         self.container = self.database.create_container_if_not_exists(
             id=config.COSMOS_DB_CONTAINER_NAME,
             partition_key=PartitionKey(path="/callerId"),
-            offer_throughput=400,
         )
 
     def create_new_session(self, caller_id: str, acs_connection_id: str):

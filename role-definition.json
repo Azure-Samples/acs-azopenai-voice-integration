@@ -1,0 +1,17 @@
+{
+  "RoleName": "Azure Cosmos DB for NoSQL Data Plane Owner v2",
+  "Type": "CustomRole",
+  "AssignableScopes": [
+    "/"
+  ],
+  "Permissions": [
+    {
+      "DataActions": [
+        "Microsoft.DocumentDB/databaseAccounts/readMetadata",
+        "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/*",
+        "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/*",
+        "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/items/*"
+      ]
+    }
+  ]
+}
