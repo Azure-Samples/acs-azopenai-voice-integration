@@ -402,10 +402,11 @@ def write_conversation_log(message: str) -> None:
 class AsyncAzureVoiceLiveAgentService(AIVoiceBase):
     """Azure Voice Live Agent Service - integrates with ACS Call Automation"""
     
-    def __init__(self, config: Config, cache: CacheService, logger: logging.Logger):
+    def __init__(self, config: Config, cache: CacheService, logger: logging.Logger, cosmosdb_service=None):
         self.config = config
         self.cache_service = cache
         self.logger = logger
+        self.cosmosdb_service = cosmosdb_service
         self.clients = {}
         self.connections = {}
         self.active_websockets = {}
@@ -446,9 +447,12 @@ class AsyncAzureVoiceLiveAgentService(AIVoiceBase):
                 "session": {
                     "turn_detection": {
                         "type": "azure_semantic_vad",
-                        "threshold": 0.3,
-                        "prefix_padding_ms": 200,
+                        "threshold": 0.2,
+                        "prefix_padding_ms": 600,
                         "silence_duration_ms": 200,
+                    },
+                    "input_audio_transcription": {
+                        "model": "whisper-1"
                     },
                     "input_audio_noise_reduction": {
                         "type": "azure_deep_noise_suppression"
@@ -461,6 +465,7 @@ class AsyncAzureVoiceLiveAgentService(AIVoiceBase):
                         "type": "azure-standard",
                         "temperature": 0.8,
                     },
+                    "modalities": ["text", "audio"],
                 },
                 "event_id": ""
             }
@@ -545,11 +550,19 @@ class AsyncAzureVoiceLiveAgentService(AIVoiceBase):
                     await self.stop_audio(call_id)
                 
                 elif event_type == "conversation.item.input_audio_transcription.completed":
-                    self.logger.info(f" >>> User: {event.get('transcript', '????')}")
+                    user_transcript = event.get('transcript', '????')
+                    self.logger.info(f" >>> User: {user_transcript}")
+                    
+                    # Store user transcript in Cosmos DB
+                    await self._store_transcript(call_id, "user", user_transcript)
                 
                 elif event_type == "response.audio_transcript.done":
                     transcript = event.get('transcript', '????')
                     self.logger.info(f" >>> Agent: {transcript}")
+                    
+                    # Store agent transcript in Cosmos DB
+                    await self._store_transcript(call_id, "agent", transcript)
+                    
                     if any(keyword in transcript.lower() for keyword in ["bye", "goodbye", "take care", "have a great day", "have a good day"]):
                         self.logger.info("### Should hangup the call ###")
                 
@@ -630,6 +643,9 @@ class AsyncAzureVoiceLiveAgentService(AIVoiceBase):
         if is_acs_id:
             call_id = await self.cache_service.get(f'websocket_id:{call_id}')
         
+        # Get ACS call ID for Cosmos DB cleanup
+        acs_call_id = await self.cache_service.get(f"acs_call_id:{call_id}")
+        
         connection = self.connections.pop(call_id, None)
         client = self.clients.pop(call_id, None)
         websocket = self.active_websockets.pop(call_id, None)
@@ -642,6 +658,26 @@ class AsyncAzureVoiceLiveAgentService(AIVoiceBase):
         if websocket:
             self.logger.info(f"Closing ACS websocket for call_id {call_id} ...")
             await websocket.close()
+        
+        # Close Cosmos DB session
+        if self.cosmosdb_service and self.cosmosdb_service.enabled and acs_call_id:
+            try:
+                # Get caller ID
+                caller_id = await self.cache_service.get(f"caller_id:{acs_call_id}")
+                if not caller_id:
+                    payload_dict = await self.cache_service.get(f'payload_dict:{acs_call_id}')
+                    if payload_dict:
+                        caller_id = payload_dict.get('phone_number', 'unknown')
+                    else:
+                        caller_id = self.config.TARGET_CANDIDATE_PHONE_NUMBER or 'unknown'
+                
+                self.cosmosdb_service.close_session(
+                    session_id=acs_call_id,
+                    caller_id=caller_id
+                )
+                self.logger.info(f"Closed Cosmos DB session for call {call_id}")
+            except Exception as e:
+                self.logger.error(f"Error closing Cosmos DB session: {e}")
         
         # Clean up session ID from cache
         if session_id:
@@ -659,6 +695,40 @@ class AsyncAzureVoiceLiveAgentService(AIVoiceBase):
         
         # Fall back to cache
         return await self.cache_service.get(f"voice_live_session_id:{call_id}")
+    
+    async def _store_transcript(self, call_id: str, sender: str, message: str):
+        """Store transcript in Cosmos DB"""
+        if not self.cosmosdb_service or not self.cosmosdb_service.enabled:
+            self.logger.debug("Cosmos DB not enabled, skipping transcript storage")
+            return
+        
+        try:
+            # Get the ACS call connection ID (Cosmos DB session ID)
+            acs_call_id = await self.cache_service.get(f"acs_call_id:{call_id}")
+            if not acs_call_id:
+                self.logger.warning(f"Could not find ACS call ID for call {call_id}")
+                return
+            
+            # Get caller ID (phone number)
+            caller_id = await self.cache_service.get(f"caller_id:{acs_call_id}")
+            if not caller_id:
+                # Try to get from payload
+                payload_dict = await self.cache_service.get(f'payload_dict:{acs_call_id}')
+                if payload_dict:
+                    caller_id = payload_dict.get('phone_number', 'unknown')
+                else:
+                    caller_id = self.config.TARGET_CANDIDATE_PHONE_NUMBER or 'unknown'
+            
+            # Store the message in Cosmos DB
+            self.cosmosdb_service.append_message_to_session(
+                session_id=acs_call_id,
+                caller_id=caller_id,
+                sender=sender,
+                message=message
+            )
+            self.logger.debug(f"Stored {sender} transcript in Cosmos DB for call {call_id}")
+        except Exception as e:
+            self.logger.error(f"Error storing transcript in Cosmos DB: {e}")
     
     async def _get_system_message_persona_from_payload(self, call_id: str, persona: str = 'default') -> str:
         """Get system message from cache or use default"""

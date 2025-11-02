@@ -46,7 +46,7 @@ data "archive_file" "api_zip" {
 # Deploy app service api
 # ------------------------------------------------------------------------------------------------------
 module "api" {
-  depends_on = [azurerm_cognitive_deployment.openai_deployments,
+  depends_on = [azurerm_cognitive_deployment.ai_foundry_deployments,
     azurerm_cosmosdb_sql_container.call_session_container,
     azurerm_communication_service.communication_service,
     null_resource.python_script_purchase_phone_number,
@@ -67,11 +67,19 @@ module "api" {
     COGNITIVE_SERVICE_ENDPOINT = azurerm_cognitive_account.CognitiveServices.endpoint
     AGENT_PHONE_NUMBER         = jsondecode(file("${path.module}/phone_number_result.json")).phone_number
     VOICE_NAME                 = "en-US-AvaMultilingualNeural"
-    # Azure OpenAI
-    AZURE_OPENAI_SERVICE_KEY           = azurerm_cognitive_account.openai.primary_access_key
-    AZURE_OPENAI_SERVICE_ENDPOINT      = azurerm_cognitive_account.openai.endpoint
-    AZURE_OPENAI_DEPLOYMENT_MODEL_NAME = azurerm_cognitive_deployment.openai_deployments["gpt-4o"].model[0].name
-    AZURE_OPENAI_DEPLOYMENT_MODEL      = azurerm_cognitive_deployment.openai_deployments["gpt-4o"].model[0].name
+    # Azure AI Foundry (replaces Azure OpenAI)
+    AZURE_OPENAI_SERVICE_KEY           = azurerm_ai_services.ai_foundry.primary_access_key
+    AZURE_OPENAI_SERVICE_ENDPOINT      = azurerm_ai_services.ai_foundry.endpoint
+    AZURE_OPENAI_DEPLOYMENT_MODEL_NAME = azurerm_cognitive_deployment.ai_foundry_deployments["gpt-4o"].model[0].name
+    AZURE_OPENAI_DEPLOYMENT_MODEL      = azurerm_cognitive_deployment.ai_foundry_deployments["gpt-4o"].model[0].name
+    # AI Foundry Realtime Model
+    AZURE_VOICE_LIVE_ENDPOINT          = azurerm_ai_services.ai_foundry.endpoint
+    AZURE_VOICE_LIVE_API_KEY           = azurerm_ai_services.ai_foundry.primary_access_key
+    AZURE_VOICE_LIVE_DEPLOYMENT        = azurerm_cognitive_deployment.ai_foundry_deployments["gpt-realtime"].name
+    VOICE_LIVE_MODEL                   = azurerm_cognitive_deployment.ai_foundry_deployments["gpt-realtime"].model[0].name
+    # AI Foundry Hub and Project
+    AI_FOUNDRY_PROJECT_NAME            = azurerm_ai_foundry_project.project.name
+    AI_FOUNDRY_HUB_ID                  = azurerm_ai_foundry.hub.id
     # Application Settings
     CALLBACK_URI_HOST   = "https://${local.name_prefix}-api.azurewebsites.net"
     CALLBACK_EVENTS_URI = "https://${local.name_prefix}-api.azurewebsites.net/api/callbacks"
@@ -113,19 +121,19 @@ resource "null_resource" "deploy_app" {
   # }
 }
 
-# Assign Cognitive Services Contributor role to the Web App
+# Assign Cognitive Services Contributor role to the Web App for AI Foundry
 resource "azurerm_role_assignment" "cognitive_services_contributor" {
   depends_on                       = [module.api]
-  scope                            = azurerm_cognitive_account.openai.id
+  scope                            = azurerm_ai_services.ai_foundry.id
   role_definition_name             = "Cognitive Services Contributor"
   principal_id                     = module.api.IDENTITY_PRINCIPAL_ID
   skip_service_principal_aad_check = true
 }
 
-# Assign Cognitive Services OpenAI Contributor role to the Web App
+# Assign Cognitive Services OpenAI Contributor role to the Web App for AI Foundry
 resource "azurerm_role_assignment" "openai_contributor" {
   depends_on                       = [module.api]
-  scope                            = azurerm_cognitive_account.openai.id
+  scope                            = azurerm_ai_services.ai_foundry.id
   role_definition_name             = "Cognitive Services OpenAI Contributor"
   principal_id                     = module.api.IDENTITY_PRINCIPAL_ID
   skip_service_principal_aad_check = true

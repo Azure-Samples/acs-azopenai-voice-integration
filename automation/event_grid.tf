@@ -1,5 +1,5 @@
 resource "azurerm_eventgrid_system_topic" "system_topic" {
-  name                   = "${local.name_prefix}-event-grid-${random_string.unique.result}"
+  name                   = "${local.name_prefix}-event-grid-${local.name_suffix}"
   location               = "global"
   resource_group_name    = azurerm_resource_group.rg.name
   source_arm_resource_id = azurerm_communication_service.communication_service.id
@@ -8,7 +8,7 @@ resource "azurerm_eventgrid_system_topic" "system_topic" {
 
 resource "azurerm_eventgrid_system_topic_event_subscription" "webapp_event_subscription" {
   depends_on          = [module.api, null_resource.deploy_app, azurerm_eventgrid_system_topic.system_topic]
-  name                = "${local.name_prefix}-acs-api-event-sub-${random_string.unique.result}"
+  name                = "${local.name_prefix}-acs-api-event-sub-${local.name_suffix}"
   system_topic        = azurerm_eventgrid_system_topic.system_topic.name
   resource_group_name = azurerm_resource_group.rg.name
 

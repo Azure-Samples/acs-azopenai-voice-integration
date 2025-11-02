@@ -6,7 +6,7 @@ resource "random_password" "db_password" {
 }
 
 resource "azurerm_cosmosdb_account" "call_session_account" {
-  name                = "${local.name_prefix}-callsession-${random_string.unique.result}"
+  name                = "${local.name_prefix}-callsession-${local.name_suffix}"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   offer_type          = "Standard"

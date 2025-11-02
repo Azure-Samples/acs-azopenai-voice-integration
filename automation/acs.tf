@@ -1,6 +1,6 @@
 # Azure Communication Service
 resource "azurerm_communication_service" "communication_service" {
-  name                = "${local.name_prefix}-acs-${random_string.unique.result}"
+  name                = "${local.name_prefix}-acs-${local.name_suffix}"
   data_location       = var.acs_data_location
   resource_group_name = azurerm_resource_group.rg.name
   tags                = local.default_tags

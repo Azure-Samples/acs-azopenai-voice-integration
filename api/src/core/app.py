@@ -1,10 +1,6 @@
 from typing import Optional
-from typing import Optional
 import uuid
 import json
-from urllib.parse import urlencode, urlparse, urlunparse
-from quart import Quart, Response, request, websocket
-from quart_schema import validate_request, QuartSchema
 from urllib.parse import urlencode, urlparse, urlunparse
 from quart import Quart, Response, request, websocket
 from quart_schema import validate_request, QuartSchema
@@ -44,6 +40,9 @@ class CallAutomationApp:
         QuartSchema(app=self.app)
         self.config = Config()
         self.logger = setup_logger(__name__)
+        
+        # Setup CORS for HTTP routes (not WebSocket)
+        self._setup_cors()
 
         # Initialize services
         self.cache_service = CacheService(
@@ -54,17 +53,22 @@ class CallAutomationApp:
             self.config.ACS_CONNECTION_STRING
         )
         
+        # Initialize CosmosDBService
+        self.cosmosdb_service = CosmosDBService(self.config)
+        
         # Initialize both AI voice services (non-agent and agent)
         self.ai_voice_service: AIVoiceBase = AsyncAzureVoiceLiveService(
             config=self.config,
             logger=self.logger,
             cache=self.cache_service,
+            cosmosdb_service=self.cosmosdb_service,
         )
         
         self.ai_voice_agent_service: AIVoiceBase = AsyncAzureVoiceLiveAgentService(
             config=self.config,
             cache=self.cache_service,
             logger=self.logger,
+            cosmosdb_service=self.cosmosdb_service,
         )
         
         #self.openai_realtime_service = OpenAIRealtimeService(
@@ -73,11 +77,31 @@ class CallAutomationApp:
         #    self.logger
         #)
 
-        # Initialize CosmosDBService
-        self.cosmosdb_service = CosmosDBService(self.config)
-
         self.setup_routes()
         self.logger.info("Application initialized successfully V0.15")
+    
+    def _setup_cors(self):
+        """Setup CORS headers for HTTP routes without breaking WebSocket"""
+        @self.app.after_request
+        async def add_cors_headers(response):
+            # Only add CORS headers to HTTP responses, not WebSocket upgrades
+            if response.status_code != 101:  # 101 = WebSocket upgrade
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+                response.headers['Access-Control-Max-Age'] = '3600'
+            return response
+        
+        @self.app.before_request
+        async def handle_preflight():
+            # Handle OPTIONS preflight requests
+            if request.method == 'OPTIONS':
+                response = Response('', 200)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+                response.headers['Access-Control-Max-Age'] = '3600'
+                return response
 
     def setup_routes(self):
         """Set up application routes"""
@@ -98,7 +122,10 @@ class CallAutomationApp:
         )
         self.app.route("/api/initiateOutboundCall", methods=["POST"])(
             self.initiate_outbound_call
-        )        
+        )
+        self.app.route("/api/transcript/<session_id>", methods=["GET"])(
+            self.get_transcript
+        )
         self.app.websocket("/ws/<call_id>")(
             self.ws
         )        
@@ -116,6 +143,66 @@ class CallAutomationApp:
         return Response(
             response="Healthy", status=200, headers={"Content-Type": "text/plain"}
         )
+    
+    async def get_transcript(self, session_id: str):
+        """Get transcript for a specific session from Cosmos DB"""
+        self.logger.info(f"Fetching transcript for session: {session_id}")
+        try:
+            if not self.cosmosdb_service or not self.cosmosdb_service.enabled:
+                return Response(
+                    response=json.dumps({
+                        "callerId": "Unknown",
+                        "callStartTime": None,
+                        "callEndTime": None,
+                        "conversation": []
+                    }),
+                    status=StatusCodes.OK,
+                    headers={"Content-Type": "application/json"},
+                )
+            
+            # Query Cosmos DB for the session
+            query = f"SELECT * FROM c WHERE c.id = '{session_id}'"
+            items = list(self.cosmosdb_service.container.query_items(
+                query=query, 
+                enable_cross_partition_query=True
+            ))
+            
+            if not items:
+                # Return empty conversation instead of error
+                return Response(
+                    response=json.dumps({
+                        "id": session_id,
+                        "callerId": "Unknown",
+                        "callStartTime": None,
+                        "callEndTime": None,
+                        "conversation": []
+                    }),
+                    status=StatusCodes.OK,
+                    headers={"Content-Type": "application/json"},
+                )
+            
+            session_data = items[0]
+            return Response(
+                response=json.dumps(session_data),
+                status=StatusCodes.OK,
+                headers={"Content-Type": "application/json"},
+            )
+            
+        except Exception as e:
+            # Log the error but return empty conversation so UI doesn't break
+            self.logger.error(f"Error fetching transcript (Cosmos DB may be blocked): {str(e)}")
+            return Response(
+                response=json.dumps({
+                    "id": session_id,
+                    "callerId": "Unknown",
+                    "callStartTime": None,
+                    "callEndTime": None,
+                    "conversation": [],
+                    "error": "Cosmos DB unavailable - check firewall settings"
+                }),
+                status=StatusCodes.OK,
+                headers={"Content-Type": "application/json"},
+            )
     ## Add incoming_call_handler ##
 
     async def incoming_call_handler(self):
@@ -247,8 +334,6 @@ class CallAutomationApp:
 
 
     #@validate_request(OutboundCallPayloadModel)
-
-    #@validate_request(OutboundCallPayloadModel)
     async def initiate_outbound_call(self):
         """Initiate an outbound call, with OutboundCallPayloadModel as the payload validation"""
         self.logger.info("Initiating outbound call...")
@@ -277,6 +362,9 @@ class CallAutomationApp:
             guid = uuid.uuid4()
             parsed_url = urlparse(self.config.CALLBACK_EVENTS_URI)
             websocket_url = urlunparse(('wss',parsed_url.netloc,f'/ws/{guid}','', '', ''))
+            
+            self.logger.info(f"WebSocket URL for ACS: {websocket_url}")
+            self.logger.info(f"Callback Events URI: {self.config.CALLBACK_EVENTS_URI}")
             
             # Create media streaming options (preview feature)
             media_streaming_options = MediaStreamingOptions(
@@ -321,6 +409,7 @@ class CallAutomationApp:
             await self.cache_service.set(f"current_session_id:{call_connection_id}", session_id)
             await self.cache_service.set(f"websocket_id:{call_connection_id}", str(guid))
             await self.cache_service.set(f"acs_call_id:{str(guid)}", call_connection_id) # not great... what if they clash when scaling?
+            await self.cache_service.set(f"caller_id:{call_connection_id}", self.config.TARGET_CANDIDATE_PHONE_NUMBER)
             await self.cache_service.set(f"payload_dict:{call_connection_id}", payload_dict)
             
             # Store use_agent flag for this call (convert to boolean)
@@ -330,7 +419,19 @@ class CallAutomationApp:
             await self.cache_service.set(f"use_agent:{str(guid)}", use_agent)
             self.logger.info(f"Call {call_connection_id} using {'agent' if use_agent else 'non-agent'} mode")
 
-            return Response(status=StatusCodes.OK)
+            # Return success with call details for UI, but also support old clients expecting 200 OK
+            response_data = {
+                "success": True,
+                "call_connection_id": call_connection_id,
+                "session_id": session_id,
+                "message": "Call initiated successfully"
+            }
+            
+            return Response(
+                response=json.dumps(response_data),
+                status=StatusCodes.OK,
+                headers={"Content-Type": "application/json"}
+            )
 
         except Exception as e:
             self.logger.error(
@@ -407,10 +508,12 @@ class CallAutomationApp:
             
     async def ws(self, call_id:str):
         """WebSocket handler - supports both agent and non-agent modes with automatic fallback"""
-        print(f"Client connected to WebSocket for call {call_id}")
+        self.logger.info(f"🔌 WebSocket connection attempt for call {call_id}")
+        print(f"🔌 Client connected to WebSocket for call {call_id}")
         
         # Determine which service to use based on use_agent flag
         use_agent = await self.cache_service.get(f"use_agent:{call_id}")
+        self.logger.info(f"Using {'agent' if use_agent else 'non-agent'} mode for WebSocket call {call_id}")
         
         # Select the appropriate AI voice service with fallback
         if use_agent:
