@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { initiateOutboundCall } from '../services/api';
+import { useState, useEffect } from 'react';
+import { initiateOutboundCall, fetchPersonas } from '../services/api';
 
 const CallInitiator = ({ onCallInitiated }) => {
   const [formData, setFormData] = useState({
@@ -11,6 +11,22 @@ const CallInitiator = ({ onCallInitiated }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [personas, setPersonas] = useState([{ value: 'default', label: 'Default' }]);
+  const [personasLoading, setPersonasLoading] = useState(true);
+
+  // Fetch available personas on component mount
+  useEffect(() => {
+    const loadPersonas = async () => {
+      setPersonasLoading(true);
+      const result = await fetchPersonas();
+      if (result.success && result.data) {
+        setPersonas(result.data);
+      }
+      setPersonasLoading(false);
+    };
+    
+    loadPersonas();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -104,11 +120,22 @@ const CallInitiator = ({ onCallInitiated }) => {
             name="persona"
             value={formData.persona}
             onChange={handleChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={personasLoading}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
-            <option value="default">Default</option>
-            <option value="recruitment">Recruitment</option>
+            {personasLoading ? (
+              <option value="">Loading personas...</option>
+            ) : (
+              personas.map((persona) => (
+                <option key={persona.value} value={persona.value}>
+                  {persona.label}
+                </option>
+              ))
+            )}
           </select>
+          {personas.length === 0 && !personasLoading && (
+            <p className="mt-1 text-xs text-red-500">Failed to load personas. Using default.</p>
+          )}
         </div>
 
         <div className="flex items-center">

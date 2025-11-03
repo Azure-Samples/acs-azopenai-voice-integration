@@ -126,6 +126,9 @@ class CallAutomationApp:
         self.app.route("/api/transcript/<session_id>", methods=["GET"])(
             self.get_transcript
         )
+        self.app.route("/api/personas", methods=["GET"])(
+            self.get_personas
+        )
         self.app.websocket("/ws/<call_id>")(
             self.ws
         )        
@@ -203,6 +206,38 @@ class CallAutomationApp:
                 status=StatusCodes.OK,
                 headers={"Content-Type": "application/json"},
             )
+    
+    async def get_personas(self):
+        """Get available AI personas from constants"""
+        try:
+            from src.config.constants import OpenAIPrompts
+            
+            # Get all available personas with friendly names
+            personas = []
+            for key in OpenAIPrompts.system_message_dict.keys():
+                # Convert key to friendly display name
+                display_name = key.replace('_', ' ').title()
+                personas.append({
+                    "value": key,
+                    "label": display_name
+                })
+            
+            return Response(
+                response=json.dumps({"personas": personas}),
+                status=StatusCodes.OK,
+                headers={"Content-Type": "application/json"},
+            )
+        except Exception as e:
+            self.logger.error(f"Error fetching personas: {str(e)}", exc_info=True)
+            return Response(
+                response=json.dumps({
+                    "error": "Failed to fetch personas",
+                    "personas": [{"value": "default", "label": "Default"}]
+                }),
+                status=StatusCodes.OK,
+                headers={"Content-Type": "application/json"},
+            )
+    
     ## Add incoming_call_handler ##
 
     async def incoming_call_handler(self):

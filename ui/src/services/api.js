@@ -51,5 +51,18 @@ export const fetchActiveSessions = async () => {
   }
 };
 
+export const fetchPersonas = async () => {
+  try {
+    const response = await api.get('/api/personas');
+    return { success: true, data: response.data.personas };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.details || error.message || 'Failed to fetch personas',
+      data: [{ value: 'default', label: 'Default' }] // Fallback
+    };
+  }
+};
+
 export default api;
 

@@ -46,11 +46,11 @@ def session_config(sys_msg: str):
                 "turn_detection": {
                     "type": "azure_semantic_vad",
                     "threshold": 0.2,
-                    "prefix_padding_ms": 700,
-                    "silence_duration_ms": 500,
+                    "prefix_padding_ms": 600,
+                    "silence_duration_ms": 200,
                 },
                 "input_audio_transcription": {
-                    "model": "whisper-1"
+                    "model": "azure-speech"
                 },
                 "input_audio_noise_reduction": {
                     "type": "azure_deep_noise_suppression"
@@ -59,10 +59,12 @@ def session_config(sys_msg: str):
                     "type": "server_echo_cancellation"
                 },
                 "voice": {
-                    "name": "en-gb-ollie:DragonHDOmniLatestNeural",
+                    "name": "en-GB-ollie:DragonHDV2Neural",
                     "type": "azure-standard",
                     "temperature": 0.8,
                 },
+                'input_audio_format': 'pcm16', 
+                'output_audio_format': 'pcm16', 
                 "instructions": sys_msg,
                 "modalities": ["text", "audio"],
             },

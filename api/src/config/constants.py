@@ -281,10 +281,12 @@ class OpenAIPrompts:
     
     Remember: Your assessment will determine if Sarah moves forward to the technical interview stage. Be thorough but efficient with your time.
     """
- 
+
+  
+
     system_message_dict = {
         "default": SYSTEM_MESSAGE_DEFAULT,
-        "recruitment": SYSTEM_MESSAGE_RECRUITMENT
+        "recruitment": SYSTEM_MESSAGE_RECRUITMENT,
     }
 
     
