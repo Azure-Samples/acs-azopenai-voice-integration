@@ -1,5 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchTranscript } from '../services/api';
+import ProductCarousel from './ProductCarousel';
+import ProductDetails from './ProductDetails';
+import PlanOptions from './PlanOptions';
+import PurchaseConfirmation from './PurchaseConfirmation';
+import AccessoriesView from './AccessoriesView';
 
 const TranscriptViewer = ({ sessionId, autoRefresh = true }) => {
   const [transcript, setTranscript] = useState([]);
@@ -7,10 +12,21 @@ const TranscriptViewer = ({ sessionId, autoRefresh = true }) => {
   const [initialLoad, setInitialLoad] = useState(true);
   const [error, setError] = useState(null);
   const [sessionInfo, setSessionInfo] = useState(null);
+  const [userHasScrolled, setUserHasScrolled] = useState(false);
   const transcriptEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
   const scrollToBottom = () => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Only auto-scroll if user hasn't manually scrolled away from bottom
+    if (!userHasScrolled) {
+      transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleScroll = (e) => {
+    const container = e.target;
+    const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 50;
+    setUserHasScrolled(!isAtBottom);
   };
 
   useEffect(() => {
@@ -112,6 +128,58 @@ const TranscriptViewer = ({ sessionId, autoRefresh = true }) => {
     );
   };
 
+  const renderToolCall = (toolData) => {
+    const { function_name, arguments: args } = toolData;
+
+    switch (function_name) {
+      case 'show_product_carousel':
+        return (
+          <ProductCarousel
+            category={args.category}
+            filter={args.filter}
+            maxPrice={args.max_price}
+          />
+        );
+      
+      case 'show_product_details':
+        return (
+          <ProductDetails
+            productId={args.product_id}
+            storageOption={args.storage_option}
+          />
+        );
+      
+      case 'show_plan_options':
+        return (
+          <PlanOptions
+            productId={args.product_id}
+            contractLength={args.contract_length}
+          />
+        );
+      
+      case 'confirm_purchase':
+        return (
+          <PurchaseConfirmation
+            purchaseDetails={args}
+          />
+        );
+      
+      case 'show_accessories':
+        return (
+          <AccessoriesView
+            productId={args.product_id}
+          />
+        );
+      
+      default:
+        return (
+          <div className="bg-gray-100 border border-gray-300 rounded-lg p-3">
+            <p className="text-sm text-gray-600">Unknown tool: {function_name}</p>
+          </div>
+        );
+    }
+  };
+
   if (!sessionId) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -160,7 +228,11 @@ const TranscriptViewer = ({ sessionId, autoRefresh = true }) => {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 min-h-[400px] max-h-[600px]">
+      <div 
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 min-h-[400px] max-h-[600px]"
+      >
         {loading && transcript.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -177,25 +249,74 @@ const TranscriptViewer = ({ sessionId, autoRefresh = true }) => {
           </div>
         ) : (
           <div className="space-y-2">
-            {transcript.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={getMessageBubbleClass(message.sender)}>
-                  <div className="flex items-center mb-2">
-                    {getSenderIcon(message.sender)}
-                    <span className="font-semibold text-sm text-gray-700 flex-1">
-                      {getSenderLabel(message.sender)}
-                    </span>
-                    <span className="text-xs text-gray-500 ml-2">
-                      {formatTimestamp(message.timestamp)}
-                    </span>
+            {transcript.map((message, index) => {
+              // Check if this is a tool call message - skip rendering it here
+              if (message.sender === 'tool_call') {
+                return null; // We'll render tool calls after their corresponding agent message
+              }
+              
+              // Regular message rendering
+              const messageElement = (
+                <div
+                  key={index}
+                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={getMessageBubbleClass(message.sender)}>
+                    <div className="flex items-center mb-2">
+                      {getSenderIcon(message.sender)}
+                      <span className="font-semibold text-sm text-gray-700 flex-1">
+                        {getSenderLabel(message.sender)}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-2">
+                        {formatTimestamp(message.timestamp)}
+                      </span>
+                    </div>
+                    <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{message.message}</p>
                   </div>
-                  <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{message.message}</p>
                 </div>
-              </div>
-            ))}
+              );
+
+              // After rendering agent/assistant message, check if there's a tool_call before it
+              // that should be rendered after this message
+              let toolCallElement = null;
+              if (message.sender === 'agent' || message.sender === 'assistant') {
+                // Look for a tool_call in the previous 3 messages
+                for (let i = Math.max(0, index - 3); i < index; i++) {
+                  if (transcript[i].sender === 'tool_call') {
+                    try {
+                      const toolData = JSON.parse(transcript[i].message);
+                      if (toolData.type === 'tool_call') {
+                        // Check if this tool call hasn't been rendered yet
+                        // (no other agent message between the tool call and current message)
+                        const hasIntermediateAgentMessage = transcript
+                          .slice(i + 1, index)
+                          .some(m => m.sender === 'agent' || m.sender === 'assistant');
+                        
+                        if (!hasIntermediateAgentMessage) {
+                          // This is the first agent message after the tool call - render the tool UI
+                          toolCallElement = (
+                            <div key={`tool-${i}`} className="w-full">
+                              {renderToolCall(toolData)}
+                            </div>
+                          );
+                          break; // Only render one tool call
+                        }
+                      }
+                    } catch (e) {
+                      console.error('Failed to parse tool call:', e);
+                    }
+                  }
+                }
+              }
+
+              // Return both the message and any tool call that should follow it
+              return (
+                <React.Fragment key={index}>
+                  {messageElement}
+                  {toolCallElement}
+                </React.Fragment>
+              );
+            })}
             <div ref={transcriptEndRef} />
           </div>
         )}

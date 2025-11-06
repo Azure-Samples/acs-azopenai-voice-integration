@@ -17,6 +17,7 @@ function App() {
         phoneNumber: callData.phone_number,
         name: callData.candidate_name,
         callConnectionId: callData.callConnectionId,
+        useAgent: callData.use_agent,
       });
     }
     
@@ -196,7 +197,10 @@ function App() {
 
           {/* Right Column - Transcript Viewer */}
           <div className="lg:sticky lg:top-8 self-start">
-            <TranscriptViewer sessionId={currentSessionId} autoRefresh={true} />
+            <TranscriptViewer 
+              sessionId={currentSessionId} 
+              autoRefresh={true}
+            />
           </div>
         </div>
       </main>

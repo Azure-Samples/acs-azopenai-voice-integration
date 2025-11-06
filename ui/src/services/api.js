@@ -64,5 +64,22 @@ export const fetchPersonas = async () => {
   }
 };
 
+export const sendToolResponse = async (sessionId, toolCallId, result, useAgentMode = false) => {
+  try {
+    const response = await api.post('/api/tool_response', {
+      session_id: sessionId,
+      tool_call_id: toolCallId,
+      result: result,
+      use_agent_mode: useAgentMode
+    });
+    return { success: true, data: response.data };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.details || error.message || 'Failed to send tool response',
+    };
+  }
+};
+
 export default api;
 

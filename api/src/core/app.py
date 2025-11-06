@@ -129,6 +129,9 @@ class CallAutomationApp:
         self.app.route("/api/personas", methods=["GET"])(
             self.get_personas
         )
+        self.app.route("/api/tool_response", methods=["POST"])(
+            self.send_tool_response
+        )
         self.app.websocket("/ws/<call_id>")(
             self.ws
         )        
@@ -235,6 +238,56 @@ class CallAutomationApp:
                     "personas": [{"value": "default", "label": "Default"}]
                 }),
                 status=StatusCodes.OK,
+                headers={"Content-Type": "application/json"},
+            )
+    
+    async def send_tool_response(self):
+        """Send tool response back to the AI agent"""
+        try:
+            data = await request.get_json()
+            session_id = data.get('session_id')
+            tool_call_id = data.get('tool_call_id')
+            result = data.get('result', {})
+            use_agent_mode = data.get('use_agent_mode', False)
+            
+            if not session_id or not tool_call_id:
+                return Response(
+                    response=json.dumps({"error": "session_id and tool_call_id are required"}),
+                    status=StatusCodes.BAD_REQUEST,
+                    headers={"Content-Type": "application/json"},
+                )
+            
+            # Get the websocket call ID from the ACS call connection ID
+            websocket_call_id = await self.cache_service.get(f"websocket_id:{session_id}")
+            if not websocket_call_id:
+                return Response(
+                    response=json.dumps({"error": "Active call session not found"}),
+                    status=StatusCodes.BAD_REQUEST,
+                    headers={"Content-Type": "application/json"},
+                )
+            
+            # Send the tool response through the appropriate AI service
+            if use_agent_mode:
+                await self.ai_voice_agent_service.send_tool_response(
+                    websocket_call_id, tool_call_id, result
+                )
+            else:
+                await self.ai_voice_service.send_tool_response(
+                    websocket_call_id, tool_call_id, result
+                )
+            
+            self.logger.info(f"Tool response sent for session {session_id}, tool_call_id {tool_call_id}")
+            
+            return Response(
+                response=json.dumps({"success": True}),
+                status=StatusCodes.OK,
+                headers={"Content-Type": "application/json"},
+            )
+        except Exception as e:
+            self.logger.error(f"Error sending tool response: {str(e)}", exc_info=True)
+            return Response(
+                response=json.dumps({"error": str(e)}),
+                status=StatusCodes.SERVER_ERROR,
                 headers={"Content-Type": "application/json"},
             )
     
